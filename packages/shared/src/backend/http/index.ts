@@ -14,10 +14,10 @@ import type {
   UserRole,
 } from '../../types';
 import type { KeyValueStorage } from '../../storage';
-import type { NexoraBackend } from '../types';
+import type { VioraBackend } from '../types';
 
-const TOKEN_KEY = 'nexora.api.token';
-const USER_CACHE_KEY = 'nexora.api.user.cache';
+const TOKEN_KEY = 'viora.api.token';
+const USER_CACHE_KEY = 'viora.api.user.cache';
 
 type ApiErrorBody = {
   code?: ErrorCode;
@@ -45,7 +45,7 @@ function isAuthFailure(code?: ErrorCode, status?: number): boolean {
 export function createHttpBackend(options: {
   baseUrl: string;
   storage: KeyValueStorage;
-}): NexoraBackend {
+}): VioraBackend {
   const { baseUrl, storage } = options;
 
   async function request<T>(
@@ -371,7 +371,7 @@ export function createHttpBackend(options: {
     },
     stats: {
       async getDashboardStats() {
-        const result = await request<{ stats: Awaited<ReturnType<NexoraBackend['stats']['getDashboardStats']>> }>(
+        const result = await request<{ stats: Awaited<ReturnType<VioraBackend['stats']['getDashboardStats']>> }>(
           '/stats/dashboard',
         );
         return result.stats;

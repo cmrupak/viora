@@ -66,13 +66,13 @@ export const MESSAGES = {
 
 export const DEMO_ACCOUNTS = {
   admin: {
-    email: 'admin@nexora.app',
+    email: 'admin@viora.app',
     password: 'Admin123!',
-    firstName: 'Nexora',
+    firstName: 'Viora',
     lastName: 'Admin',
   },
   user: {
-    email: 'jane@nexora.app',
+    email: 'jane@viora.app',
     password: 'User123!',
     firstName: 'Jane',
     lastName: 'Carter',

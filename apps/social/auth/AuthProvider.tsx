@@ -113,7 +113,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!api) throw new Error('Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in apps/social/.env');
         const result = await api.auth.login(input);
         setUser(result.user);
-        if (result.user) setProfile(await api.auth.ensureProfile(result.user.id));
+        if (result.user) {
+          setProfile(await api.auth.ensureProfile(result.user.id));
+          void api.settings
+            .recordLoginEvent(result.user.id, {
+              userAgent: 'expo',
+              deviceLabel: 'Mobile',
+            })
+            .catch(() => undefined);
+        }
       },
       async register(input) {
         if (!api) throw new Error('Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in apps/social/.env');

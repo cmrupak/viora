@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { AppError, ERROR_CODES, type UserProfile } from '@nexora/shared';
+import { AppError, ERROR_CODES, type UserProfile } from '@viora/shared';
 import { getUserByUid, verifyToken } from './auth.ts';
 
 export type AuthedRequest = Request & {

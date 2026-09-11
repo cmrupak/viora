@@ -6,7 +6,8 @@ import { ActivityIndicator, View } from 'react-native';
 import 'react-native-reanimated';
 import '../global.css';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
-import { useColorScheme } from '@/components/useColorScheme';
+import { AppUpdateChecker } from '@/components/AppUpdateChecker';
+import { AppThemeProvider, useColorScheme } from '@/components/ThemePreference';
 import { brand, colors } from '@/design/tokens';
 
 export const unstable_settings = {
@@ -62,11 +63,21 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <AppThemeProvider>
+        <RootNavigation />
+      </AppThemeProvider>
+    </AuthProvider>
+  );
+}
+
+function RootNavigation() {
   const colorScheme = useColorScheme();
 
   return (
-    <AuthProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <AppUpdateChecker />
         <AuthGate>
           <Stack>
             <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -81,17 +92,28 @@ export default function RootLayout() {
             <Stack.Screen name="messages/index" options={{ title: 'Messages' }} />
             <Stack.Screen name="messages/[id]" options={{ title: 'Chat' }} />
             <Stack.Screen name="friends" options={{ title: 'Friends' }} />
+            <Stack.Screen name="connections/[username]" options={{ title: 'Connections' }} />
+            <Stack.Screen name="relationship-lists" options={{ title: 'Lists' }} />
             <Stack.Screen name="groups" options={{ title: 'Groups' }} />
+            <Stack.Screen name="group/[id]" options={{ title: 'Group' }} />
             <Stack.Screen name="events" options={{ title: 'Events' }} />
+            <Stack.Screen name="event/[id]" options={{ title: 'Event' }} />
             <Stack.Screen name="reels" options={{ title: 'Reels' }} />
+            <Stack.Screen name="reels/create" options={{ title: 'New reel' }} />
+            <Stack.Screen name="watch" options={{ title: 'Watch' }} />
+            <Stack.Screen name="highlights" options={{ title: 'Highlights' }} />
+            <Stack.Screen name="hashtag/[tag]" options={{ title: 'Hashtag' }} />
+            <Stack.Screen name="place/[name]" options={{ title: 'Place' }} />
             <Stack.Screen name="saved" options={{ title: 'Saved' }} />
             <Stack.Screen name="search" options={{ title: 'Search' }} />
             <Stack.Screen name="stories/create" options={{ title: 'New story' }} />
+            <Stack.Screen name="notification-prefs" options={{ title: 'Notifications' }} />
+            <Stack.Screen name="safety" options={{ title: 'Safety' }} />
+            <Stack.Screen name="account-security" options={{ title: 'Account security' }} />
             <Stack.Screen name="settings" options={{ title: 'Settings' }} />
           </Stack>
         </AuthGate>
-        <StatusBar style="auto" />
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       </ThemeProvider>
-    </AuthProvider>
   );
 }

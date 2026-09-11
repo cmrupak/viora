@@ -18,11 +18,11 @@ export function RightSidebar() {
     void (async () => {
       try {
         const [people, events] = await Promise.all([
-          api.profiles.search('a', 8).catch(() => [] as Profile[]),
+          api.follows.listSuggestions(user.id, 8).catch(() => [] as Profile[]),
           api.events.list({ limit: 5 }).catch(() => []),
         ]);
         if (!active) return;
-        setSuggestions(people.filter((p) => p.id !== user.id).slice(0, 5));
+        setSuggestions(people.slice(0, 5));
         setEventsCount(events.length);
       } catch {
         /* ignore sidebar errors */
@@ -46,7 +46,7 @@ export function RightSidebar() {
   return (
     <aside className="sticky top-0 hidden h-full w-[320px] shrink-0 flex-col gap-4 overflow-hidden py-4 pl-4 xl:flex">
       <Card>
-        <h3 className="mb-3 text-base font-semibold text-ink">Suggestions</h3>
+        <h3 className="mb-3 text-base font-semibold text-ink">People you may know</h3>
         {suggestions.length === 0 ? (
           <p className="text-sm text-muted">No suggestions right now.</p>
         ) : (

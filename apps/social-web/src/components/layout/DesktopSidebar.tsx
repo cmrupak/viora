@@ -14,6 +14,7 @@ import {
   User,
   Compass,
   Clapperboard,
+  Tv,
   PlusSquare,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
@@ -28,6 +29,7 @@ const links: Array<{ to: string; label: string; icon: typeof Home; badge?: strin
   { to: '/search', label: 'Search', icon: Search },
   { to: '/friends', label: 'Friends', icon: Users },
   { to: '/reels', label: 'Reels', icon: Clapperboard },
+  { to: '/watch', label: 'Watch', icon: Tv },
   { to: '/messages', label: 'Messages', icon: MessageCircle },
   { to: '/notifications', label: 'Notifications', icon: Bell },
   { to: '/groups', label: 'Groups', icon: Users },

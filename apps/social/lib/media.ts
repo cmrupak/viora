@@ -23,6 +23,12 @@ export function contentTypeForExtension(ext: string): string {
     case 'heic':
     case 'heif':
       return 'image/heic';
+    case 'mp4':
+      return 'video/mp4';
+    case 'mov':
+      return 'video/quicktime';
+    case 'webm':
+      return 'video/webm';
     default:
       return 'image/jpeg';
   }

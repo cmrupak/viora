@@ -89,7 +89,7 @@ export type {
   AdminService,
   AuthService,
   FileStorageService,
-  NexoraBackend,
+  VioraBackend,
   RecordService,
   StatsService,
   UserService,

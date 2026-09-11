@@ -58,9 +58,71 @@ export default function SettingsScreen() {
 
       <Pressable
         style={[styles.btn, { borderColor: colors.line }]}
+        onPress={() => router.push('/notification-prefs')}
+      >
+        <Text style={[styles.btnText, { color: colors.ink }]}>Notification preferences</Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.btn, { borderColor: colors.line }]}
+        onPress={() => router.push('/safety')}
+      >
+        <Text style={[styles.btnText, { color: colors.ink }]}>Safety & privacy</Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.btn, { borderColor: colors.line }]}
+        onPress={() => router.push('/account-security')}
+      >
+        <Text style={[styles.btnText, { color: colors.ink }]}>Account security</Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.btn, { borderColor: colors.line }]}
         onPress={() => router.push({ pathname: '/messages/index' })}
       >
         <Text style={[styles.btnText, { color: colors.ink }]}>Messages</Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.btn, { borderColor: colors.line }]}
+        onPress={() => router.push({ pathname: '/relationship-lists', params: { kind: 'mutes' } })}
+      >
+        <Text style={[styles.btnText, { color: colors.ink }]}>Muted</Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.btn, { borderColor: colors.line }]}
+        onPress={() =>
+          router.push({ pathname: '/relationship-lists', params: { kind: 'restricts' } })
+        }
+      >
+        <Text style={[styles.btnText, { color: colors.ink }]}>Restricted</Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.btn, { borderColor: colors.line }]}
+        onPress={() =>
+          router.push({ pathname: '/relationship-lists', params: { kind: 'snoozes' } })
+        }
+      >
+        <Text style={[styles.btnText, { color: colors.ink }]}>Snoozed</Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.btn, { borderColor: colors.line }]}
+        onPress={() => router.push({ pathname: '/relationship-lists', params: { kind: 'close' } })}
+      >
+        <Text style={[styles.btnText, { color: colors.ink }]}>Close friends</Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.btn, { borderColor: colors.line }]}
+        onPress={() =>
+          router.push({ pathname: '/relationship-lists', params: { kind: 'favorites' } })
+        }
+      >
+        <Text style={[styles.btnText, { color: colors.ink }]}>Favorites</Text>
       </Pressable>
 
       <Pressable

@@ -8,21 +8,22 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Users } from 'lucide-react-native';
-import { getErrorMessage, type Group } from '@viora/core';
+import { getErrorMessage, type Group, type GroupVisibility } from '@viora/core';
 import { useAuth } from '@/auth/AuthProvider';
 import { useColorScheme } from '@/components/useColorScheme';
 import { colors } from '@/design/tokens';
 
 export default function GroupsScreen() {
   const { api, user } = useAuth();
+  const router = useRouter();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = colors[scheme];
   const [groups, setGroups] = useState<Group[]>([]);
-  const [joinedIds, setJoinedIds] = useState<Set<string>>(new Set());
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [visibility, setVisibility] = useState<GroupVisibility>('public');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -33,20 +34,8 @@ export default function GroupsScreen() {
     if (!api || !user) return;
     setError('');
     try {
-      const list = await api.groups.list({ limit: 40 });
+      const list = await api.groups.list({ limit: 40, currentUserId: user.id });
       setGroups(list);
-      const memberships = await Promise.all(
-        list.map(async (g) => {
-          if (g.ownerId === user.id) return g.id;
-          try {
-            const members = await api.groups.listMembers(g.id, { limit: 100 });
-            return members.some((m) => m.userId === user.id) ? g.id : null;
-          } catch {
-            return null;
-          }
-        }),
-      );
-      setJoinedIds(new Set(memberships.filter((id): id is string => Boolean(id))));
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -71,16 +60,25 @@ export default function GroupsScreen() {
         name: name.trim(),
         ownerId: user.id,
         description: description.trim() || null,
+        visibility,
       });
-      try {
-        await api.groups.join(created.id, user.id);
-      } catch {
-        /* owner may already be a member via trigger */
-      }
       setName('');
       setDescription('');
-      setGroups((prev) => [created, ...prev]);
-      setJoinedIds((prev) => new Set([...prev, created.id]));
+      setVisibility('public');
+      setGroups((prev) => [
+        {
+          ...created,
+          myMembership: {
+            id: 'local',
+            groupId: created.id,
+            userId: user.id,
+            role: 'owner',
+            status: 'active',
+            createdAt: created.createdAt,
+          },
+        },
+        ...prev,
+      ]);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -90,20 +88,21 @@ export default function GroupsScreen() {
 
   async function onToggle(group: Group) {
     if (!api || !user) return;
-    const joined = joinedIds.has(group.id);
+    const joined =
+      group.myMembership?.status === 'active' || group.myMembership?.status === 'pending';
     setBusyId(group.id);
     setError('');
     try {
       if (joined) {
         await api.groups.leave(group.id, user.id);
-        setJoinedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(group.id);
-          return next;
-        });
+        setGroups((prev) =>
+          prev.map((g) => (g.id === group.id ? { ...g, myMembership: null } : g)),
+        );
       } else {
-        await api.groups.join(group.id, user.id);
-        setJoinedIds((prev) => new Set([...prev, group.id]));
+        const mem = await api.groups.requestJoin({ groupId: group.id, userId: user.id });
+        setGroups((prev) =>
+          prev.map((g) => (g.id === group.id ? { ...g, myMembership: mem } : g)),
+        );
       }
     } catch (err) {
       setError(getErrorMessage(err));
@@ -161,6 +160,19 @@ export default function GroupsScreen() {
                 className="min-h-[72px] rounded-xl border border-border bg-surface px-3 py-3 text-sm text-ink"
                 style={{ textAlignVertical: 'top' }}
               />
+              <View className="flex-row flex-wrap gap-2">
+                {(['public', 'private', 'hidden'] as GroupVisibility[]).map((v) => (
+                  <Pressable
+                    key={v}
+                    onPress={() => setVisibility(v)}
+                    className={`rounded-full px-3 py-1.5 ${visibility === v ? 'bg-primary' : 'border border-border'}`}
+                  >
+                    <Text className={`text-xs font-bold capitalize ${visibility === v ? 'text-white' : 'text-ink'}`}>
+                      {v}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
               <Pressable
                 disabled={creating || !name.trim()}
                 onPress={() => void onCreate()}
@@ -188,29 +200,32 @@ export default function GroupsScreen() {
           </View>
         }
         renderItem={({ item }) => {
-          const joined = joinedIds.has(item.id);
+          const joined = item.myMembership?.status === 'active';
+          const pending = item.myMembership?.status === 'pending';
           const isOwner = item.ownerId === user?.id;
           return (
             <View className="flex-row items-start justify-between gap-3 rounded-2xl border border-border bg-surface p-4">
-              <View className="min-w-0 flex-1">
+              <Pressable
+                className="min-w-0 flex-1"
+                onPress={() => router.push(`/group/${item.id}`)}
+              >
                 <Text className="text-sm font-semibold text-ink">{item.name}</Text>
                 {item.description ? (
                   <Text className="mt-1 text-sm text-muted">{item.description}</Text>
                 ) : null}
-                <Text className="mt-1 text-xs text-muted">
-                  {isOwner
-                    ? 'You own this group'
-                    : `Hosted by @${item.owner?.username ?? 'user'}`}
+                <Text className="mt-1 text-xs capitalize text-muted">
+                  {item.visibility ?? (item.isPrivate ? 'private' : 'public')}
+                  {isOwner ? ' · You own this' : ` · @${item.owner?.username ?? 'user'}`}
                 </Text>
-              </View>
+              </Pressable>
               <Pressable
                 disabled={busyId === item.id || (isOwner && joined)}
                 onPress={() => void onToggle(item)}
-                className={`rounded-full px-3 py-2 ${joined ? 'border border-border' : 'bg-primary'}`}
+                className={`rounded-full px-3 py-2 ${joined || pending ? 'border border-border' : 'bg-primary'}`}
                 style={{ opacity: busyId === item.id || (isOwner && joined) ? 0.5 : 1 }}
               >
-                <Text className={`text-xs font-bold ${joined ? 'text-ink' : 'text-white'}`}>
-                  {joined ? 'Leave' : 'Join'}
+                <Text className={`text-xs font-bold ${joined || pending ? 'text-ink' : 'text-white'}`}>
+                  {pending ? 'Pending' : joined ? 'Leave' : 'Join'}
                 </Text>
               </Pressable>
             </View>

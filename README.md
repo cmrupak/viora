@@ -1,81 +1,44 @@
-# CRUD
+# Viora
 
-Temporary app name (will be renamed when the project is complete).
+Social media app for **web** and **mobile**, sharing one backend and business logic.
 
-Full-stack CRUD app:
+| App | Path | Stack |
+| --- | --- | --- |
+| Web | `apps/social-web` (`@viora/web`) | React + Vite + Tailwind |
+| Mobile | `apps/social` (`@viora/mobile`) | Expo Router + NativeWind |
+| Shared core | `packages/social-core` (`@viora/core`) | Supabase Auth, Postgres RLS, Storage, Realtime |
+| Optional legacy API | `apps/api` (`@viora/api`) | Express (not required for Viora social clients) |
 
-- **CRUD Web** — React + Vite
-- **CRUD Mobile** — Expo / React Native (same API)
-- **API** — Express + **local PostgreSQL** (Turso kept for later server)
+## Project flow (for AI / handoff)
 
-## Architecture
-
-| Layer | Technology |
-| --- | --- |
-| Database (local) | PostgreSQL |
-| Database (later/server) | Turso (commented, ready to switch) |
-| API | `apps/api` → port `8787` |
-| Web | `VITE_DATA_SOURCE=api` |
-| Mobile | `EXPO_PUBLIC_API_URL` → same API |
-
-Demo login: `admin@nexora.app` / `Admin123!`
+See **[`VIORA_PROJECT_FLOW.md`](./VIORA_PROJECT_FLOW.md)** — keep that file updated as the product changes.
 
 ## Local development
 
-### 1. API + Postgres
+```bash
+npm install
+npm run dev:social-web      # http://localhost:5174
+npm run dev:social-mobile
+```
+
+### Env
+
+- Web: `apps/social-web/.env` → `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+- Mobile: `apps/social/.env` → `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- Never put the Supabase **service_role** key in client apps
+
+### Deploy
+
+- GitHub: `cmrupak/viora`
+- Web: Netlify (`netlify.toml` → `apps/social-web/dist`)
+- Live: https://vioradev.netlify.app
+- Android: EAS preview APK + `/app` download page
+
+## Optional legacy API
 
 ```bash
 npm run db:setup
 npm run dev:api
 ```
 
-Health: http://localhost:8787/health
-
-### 2. Web
-
-```bash
-npm run dev
-```
-
-http://localhost:5173
-
-### 3. Mobile
-
-Phone and PC must be on the **same Wi‑Fi**. Set your PC LAN IP in `apps/mobile/.env`:
-
-```env
-EXPO_PUBLIC_API_URL=http://192.168.1.9:8787
-```
-
-```bash
-npm run dev:mobile
-```
-
-Scan the QR code with Expo Go. Login with the same admin/user accounts as web — same Postgres data.
-
-Android emulator tip: use `http://10.0.2.2:8787`.
-
-## Roadmap (after local features)
-
-1. Finish any extra features on local web + mobile  
-2. Switch API DB to Turso for server (uncomment Turso in `apps/api`)  
-3. Deploy API to a host with HTTPS  
-4. Deploy web to **Netlify** (`apps/web/dist` + `VITE_API_URL`)  
-5. Build Android with **EAS** → upload AAB to **Google Play**
-
-### Netlify (later)
-
-```bash
-# set VITE_API_URL to your public API, then:
-npm run build
-# deploy apps/web/dist to Netlify (SPA redirect: /* → /index.html)
-```
-
-### Google Play (later)
-
-```bash
-cd apps/mobile
-npx eas-cli login
-npx eas build -p android --profile production
-npx eas submit -p android --profile production
-```
+Legacy demo user (API only): `admin@viora.app` / `Admin123!`

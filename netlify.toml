@@ -3,9 +3,17 @@
 # Required Netlify env vars (Site settings → Environment variables):
 #   VITE_SUPABASE_URL
 #   VITE_SUPABASE_ANON_KEY
+# OTP password reset (server / Netlify Functions — never VITE_*):
+#   SUPABASE_URL                 (same project URL)
+#   SUPABASE_SERVICE_ROLE_KEY    (service_role — server only)
+#   SMTP_HOST=smtp.gmail.com
+#   SMTP_PORT=587
+#   SMTP_USER=
+#   SMTP_PASS=
+#   SMTP_FROM=Viora <you@example.com>
 # Optional:
-#   VITE_ANDROID_APK_URL   (direct APK / EAS artifact URL for /app)
-#   VITE_IOS_APP_URL       (App Store / TestFlight link)
+#   VITE_ANDROID_APK_URL
+#   VITE_IOS_APP_URL
 
 [build]
   base = "."
@@ -15,6 +23,29 @@
 [build.environment]
   NODE_VERSION = "20"
   GIT_LFS_ENABLED = "true"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# API before SPA fallback
+[[redirects]]
+  from = "/api/password-otp"
+  to = "/.netlify/functions/password-otp"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/account-export"
+  to = "/.netlify/functions/account-export"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/account-delete"
+  to = "/.netlify/functions/account-delete"
+  status = 200
+  force = true
 
 [[redirects]]
   from = "/*"

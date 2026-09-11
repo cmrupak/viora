@@ -6,8 +6,14 @@ import type { Profile, SessionUser } from './types';
 export type AuthRegisterInput = {
   email: string;
   password: string;
-  username: string;
-  displayName: string;
+  /** Optional — auto-generated uniquely when omitted */
+  username?: string;
+  /** @deprecated prefer firstName + lastName */
+  displayName?: string;
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: string;
+  gender?: string;
 };
 
 export type AuthLoginInput = {
@@ -24,6 +30,57 @@ export type AuthResult = {
 function mapUser(user: User | null): SessionUser | null {
   if (!user?.email) return null;
   return { id: user.id, email: user.email };
+}
+
+function sanitizeUsernamePart(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_]+/g, '')
+    .replace(/^_+|_+$/g, '');
+}
+
+function buildUsernameBase(input: {
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+}) {
+  const provided = sanitizeUsernamePart(input.username ?? '');
+  if (provided.length >= 3) return provided.slice(0, 24);
+
+  const first = sanitizeUsernamePart(input.firstName ?? '');
+  const last = sanitizeUsernamePart(input.lastName ?? '');
+  const fromName = sanitizeUsernamePart(`${first}${last}` || `${first}_${last}`);
+  if (fromName.length >= 3) return fromName.slice(0, 24);
+
+  const fromEmail = sanitizeUsernamePart(input.email.split('@')[0] ?? '');
+  if (fromEmail.length >= 3) return fromEmail.slice(0, 24);
+
+  return `user${Date.now().toString(36).slice(-6)}`;
+}
+
+async function allocateUniqueUsername(
+  supabase: SupabaseClient,
+  input: { username?: string; firstName?: string; lastName?: string; email: string },
+): Promise<string> {
+  const base = buildUsernameBase(input);
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const candidate =
+      attempt === 0 ? base : `${base.slice(0, 18)}${Math.floor(1000 + Math.random() * 9000)}`;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', candidate)
+      .maybeSingle();
+    if (error && !/permission|rls|policy/i.test(error.message)) {
+      throw new Error(toUserError(error));
+    }
+    if (!data) return candidate;
+  }
+  return `${base.slice(0, 12)}${Date.now().toString(36)}`.slice(0, 24);
 }
 
 export function createAuthService(supabase: SupabaseClient) {
@@ -49,14 +106,27 @@ export function createAuthService(supabase: SupabaseClient) {
 
     async register(input: AuthRegisterInput): Promise<AuthResult> {
       const email = input.email.trim().toLowerCase();
-      const username = input.username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
-      const displayName = input.displayName.trim();
+      const firstName = (input.firstName ?? '').trim();
+      const lastName = (input.lastName ?? '').trim();
+      const displayName =
+        [firstName, lastName].filter(Boolean).join(' ').trim() || (input.displayName ?? '').trim();
+      const dateOfBirth = (input.dateOfBirth ?? '').trim();
+      const gender = (input.gender ?? '').trim();
+      const username = await allocateUniqueUsername(supabase, {
+        username: input.username,
+        firstName,
+        lastName,
+        email,
+      });
 
-      if (!email || !input.password || username.length < 3 || !displayName) {
-        throw new Error('Enter a valid email, username (3+), display name, and password.');
+      if (!email || !input.password || !displayName) {
+        throw new Error('Enter a valid email, name, and password.');
       }
       if (input.password.length < 8) {
         throw new Error('Password must be at least 8 characters.');
+      }
+      if (dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
+        throw new Error('Enter a valid date of birth.');
       }
 
       const { data, error } = await supabase.auth.signUp({
@@ -66,6 +136,10 @@ export function createAuthService(supabase: SupabaseClient) {
           data: {
             username,
             display_name: displayName,
+            first_name: firstName,
+            last_name: lastName,
+            date_of_birth: dateOfBirth || null,
+            gender,
           },
         },
       });

@@ -8,12 +8,12 @@ import {
   type UserProfile,
   type UserRole,
   type AccountStatus,
-} from '@nexora/shared';
+} from '@viora/shared';
 import { createId, db, nowIso } from './db.ts';
 import { SCHEMA_SQL } from './schema.ts';
 
 const jwtSecret = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? 'nexora-dev-jwt-secret-change-in-production',
+  process.env.JWT_SECRET ?? 'viora-dev-jwt-secret-change-in-production',
 );
 
 export type DbUser = {
@@ -240,7 +240,7 @@ async function seedDemoUsers(): Promise<void> {
 
     const jane2 = await db.execute({
       sql: 'SELECT uid FROM users WHERE email = ? LIMIT 1',
-      args: ['jane2@nexora.app'],
+      args: ['jane2@viora.app'],
     });
     if (jane2.rows.length === 0) {
       const now = nowIso();
@@ -250,12 +250,12 @@ async function seedDemoUsers(): Promise<void> {
         [
           {
             sql: `INSERT INTO users (uid, first_name, last_name, email, phone, role, status, gender, relation, photo_url, avatar_id, photo_manual, profile_setup_complete, created_at, updated_at, last_login_at, deactivated_at)
-                  VALUES (?, 'Jane', 'Carter', 'jane2@nexora.app', '+910000000003', 'user', 'active', 'female', 'cousin', ?, ?, 0, 0, ?, ?, NULL, NULL)`,
+                  VALUES (?, 'Jane', 'Carter', 'jane2@viora.app', '+910000000003', 'user', 'active', 'female', 'cousin', ?, ?, 0, 0, ?, ?, NULL, NULL)`,
             args: [jane2Uid, avatarPath(avatar), avatar, now, now],
           },
           {
             sql: `INSERT INTO accounts (email, uid, password_hash) VALUES (?, ?, NULL)`,
-            args: ['jane2@nexora.app', jane2Uid],
+            args: ['jane2@viora.app', jane2Uid],
           },
         ],
         'write',
@@ -268,7 +268,7 @@ async function seedDemoUsers(): Promise<void> {
   const adminUid = 'user_admin_seed';
   const userUid = 'user_jane_seed';
   const jane2Uid = 'user_jane2_seed';
-  const adminAvatar = pickAvatarId('Nexora Admin', 'male');
+  const adminAvatar = pickAvatarId('Viora Admin', 'male');
   const janeAvatar = pickAvatarId('Jane Carter', 'female');
 
   await db.batch(
@@ -313,12 +313,12 @@ async function seedDemoUsers(): Promise<void> {
       },
       {
         sql: `INSERT INTO users (uid, first_name, last_name, email, phone, role, status, gender, relation, photo_url, avatar_id, photo_manual, profile_setup_complete, created_at, updated_at, last_login_at, deactivated_at)
-              VALUES (?, 'Jane', 'Carter', 'jane2@nexora.app', '+910000000003', 'user', 'active', 'female', 'cousin', ?, ?, 0, 0, ?, ?, NULL, NULL)`,
+              VALUES (?, 'Jane', 'Carter', 'jane2@viora.app', '+910000000003', 'user', 'active', 'female', 'cousin', ?, ?, 0, 0, ?, ?, NULL, NULL)`,
         args: [jane2Uid, avatarPath(pickAvatarId('Jane Carter Two', 'female')), pickAvatarId('Jane Carter Two', 'female'), now, now],
       },
       {
         sql: `INSERT INTO accounts (email, uid, password_hash) VALUES (?, ?, NULL)`,
-        args: ['jane2@nexora.app', jane2Uid],
+        args: ['jane2@viora.app', jane2Uid],
       },
       {
         sql: `INSERT INTO records (id, user_id, title, description, status, deleted, deleted_at, created_at, updated_at)
@@ -326,7 +326,7 @@ async function seedDemoUsers(): Promise<void> {
         args: [
           'rec_welcome',
           userUid,
-          'Welcome to Nexora',
+          'Welcome to Viora',
           'This is a sample record stored in Postgres.',
           now,
           now,

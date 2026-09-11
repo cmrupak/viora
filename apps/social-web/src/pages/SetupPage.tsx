@@ -23,8 +23,8 @@ export function SetupPage() {
           <li>Enable Email auth in Supabase Authentication → Providers</li>
         </ol>
         <div className="mt-6">
-          <Link to="/">
-            <Button>Back to welcome</Button>
+          <Link to="/login">
+            <Button>Back to sign in</Button>
           </Link>
         </div>
       </Card>

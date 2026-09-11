@@ -5,11 +5,12 @@ import {
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ImagePlus, X } from 'lucide-react-native';
-import { getErrorMessage } from '@viora/core';
+import { getErrorMessage, type StoryAudience, type StorySticker } from '@viora/core';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/auth/AuthProvider';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -22,6 +23,8 @@ export default function StoriesCreateScreen() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = colors[scheme];
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [audience, setAudience] = useState<StoryAudience>('public');
+  const [pollQuestion, setPollQuestion] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -54,9 +57,20 @@ export default function StoriesCreateScreen() {
         contentType: contentTypeForExtension(ext),
         extension: ext,
       });
+      const stickers: StorySticker[] = [];
+      if (pollQuestion.trim()) {
+        stickers.push({
+          id: `stk_${Date.now()}`,
+          type: 'poll',
+          x: 0.5,
+          y: 0.7,
+          payload: { question: pollQuestion.trim(), options: ['Yes', 'No'] },
+        });
+      }
       await api.stories.createStory({
         authorId: user.id,
-        media: [{ url, mediaType: 'image' }],
+        audience,
+        media: [{ url, mediaType: 'image', stickers }],
       });
       router.replace('/(tabs)/feed');
     } catch (err) {
@@ -105,6 +119,38 @@ export default function StoriesCreateScreen() {
           </Pressable>
         </View>
       )}
+
+      <Text className="text-xs font-bold uppercase text-muted">Audience</Text>
+      <View className="flex-row gap-2">
+        <Pressable
+          onPress={() => setAudience('public')}
+          className={`rounded-full px-4 py-2 ${audience === 'public' ? 'bg-primary' : 'border border-border bg-surface'}`}
+        >
+          <Text className={audience === 'public' ? 'font-bold text-white' : 'font-bold text-ink'}>
+            Everyone
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setAudience('close_friends')}
+          className={`rounded-full px-4 py-2 ${audience === 'close_friends' ? 'bg-primary' : 'border border-border bg-surface'}`}
+        >
+          <Text
+            className={
+              audience === 'close_friends' ? 'font-bold text-white' : 'font-bold text-ink'
+            }
+          >
+            Close friends
+          </Text>
+        </Pressable>
+      </View>
+
+      <TextInput
+        value={pollQuestion}
+        onChangeText={setPollQuestion}
+        placeholder="Optional poll question"
+        placeholderTextColor={palette.muted}
+        className="rounded-2xl border border-border bg-surface px-4 py-3 text-ink"
+      />
 
       <View className="flex-row gap-2">
         <Pressable

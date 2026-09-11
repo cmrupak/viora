@@ -6,7 +6,7 @@ import {
   paginate,
   validateProfile,
   type UserRole,
-} from '@nexora/shared';
+} from '@viora/shared';
 import { getUserByUid, mapUser, writeAudit, type DbUser } from '../auth.ts';
 import { db, nowIso } from '../db.ts';
 import { asyncHandler, requireAdmin, requireAuth, type AuthedRequest } from '../middleware.ts';

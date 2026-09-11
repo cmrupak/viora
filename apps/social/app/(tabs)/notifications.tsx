@@ -15,21 +15,29 @@ import { useColorScheme } from '@/components/useColorScheme';
 
 function labelFor(n: Notification): string {
   const actor = n.actor?.displayName || n.actor?.username || 'Someone';
+  const extras =
+    (n.groupCount ?? 1) > 1
+      ? ` and ${(n.groupCount ?? 1) - 1} other${(n.groupCount ?? 1) - 1 === 1 ? '' : 's'}`
+      : '';
   switch (n.type) {
     case 'like':
-      return `${actor} liked your post`;
+      return `${actor}${extras} liked your post`;
     case 'comment':
-      return `${actor} commented on your post`;
+      return `${actor}${extras} commented on your post`;
     case 'reply':
-      return `${actor} replied to your comment`;
+      return `${actor}${extras} replied to your comment`;
     case 'follow':
-      return `${actor} followed you`;
+      return `${actor}${extras} followed you`;
     case 'mention':
       return `${actor} mentioned you`;
     case 'share':
-      return `${actor} shared your post`;
+      return `${actor}${extras} shared your post`;
     case 'message':
       return `${actor} sent you a message`;
+    case 'birthday':
+      return n.body || `${actor}'s birthday is today`;
+    case 'memory':
+      return n.body || 'On this day';
     default:
       return n.body || 'Notification';
   }

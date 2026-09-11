@@ -10,6 +10,8 @@ export type ProfileUpdateInput = {
   website?: string;
   location?: string;
   coverUrl?: string;
+  isPrivate?: boolean;
+  tagReviewEnabled?: boolean;
 };
 
 export type AvatarUploadInput = {
@@ -39,6 +41,8 @@ function validateProfileInput(input: ProfileUpdateInput): ProfileUpdateInput {
   if (input.website !== undefined) next.website = input.website.trim();
   if (input.location !== undefined) next.location = input.location.trim();
   if (input.coverUrl !== undefined) next.coverUrl = input.coverUrl;
+  if (input.isPrivate !== undefined) next.isPrivate = Boolean(input.isPrivate);
+  if (input.tagReviewEnabled !== undefined) next.tagReviewEnabled = Boolean(input.tagReviewEnabled);
   return next;
 }
 
@@ -95,6 +99,16 @@ export function createProfileService(supabase: SupabaseClient) {
       if (next.website !== undefined) patch.website = next.website || null;
       if (next.location !== undefined) patch.location = next.location || null;
       if (next.coverUrl !== undefined) patch.cover_url = next.coverUrl || null;
+      if (next.isPrivate !== undefined) {
+        patch.is_private = next.isPrivate;
+        // Decision #12: default tag review on when going private (unless explicitly set)
+        if (next.tagReviewEnabled === undefined && next.isPrivate) {
+          patch.tag_review_enabled = true;
+        }
+      }
+      if (next.tagReviewEnabled !== undefined) {
+        patch.tag_review_enabled = next.tagReviewEnabled;
+      }
 
       const { data, error } = await supabase
         .from('profiles')

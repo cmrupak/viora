@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { CalendarDays } from 'lucide-react-native';
 import { getErrorMessage, type Event } from '@viora/core';
 import { useAuth } from '@/auth/AuthProvider';
@@ -26,6 +26,7 @@ function parseStartsAt(value: string): string | null {
 
 export default function EventsScreen() {
   const { api, user } = useAuth();
+  const router = useRouter();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = colors[scheme];
   const [events, setEvents] = useState<Event[]>([]);
@@ -33,6 +34,7 @@ export default function EventsScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startsAt, setStartsAt] = useState('');
+  const [isOnline, setIsOnline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -87,11 +89,13 @@ export default function EventsScreen() {
         hostId: user.id,
         startsAt: iso,
         description: description.trim() || null,
+        isOnline,
       });
       await api.events.join(created.id, user.id, 'going');
       setTitle('');
       setDescription('');
       setStartsAt('');
+      setIsOnline(false);
       setEvents((prev) =>
         [...prev, created].sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
       );
@@ -204,6 +208,14 @@ export default function EventsScreen() {
                 className="rounded-xl border border-border bg-surface px-3 py-3 text-sm text-ink"
               />
               <Pressable
+                onPress={() => setIsOnline((v) => !v)}
+                className={`self-start rounded-full px-3 py-1.5 ${isOnline ? 'bg-primary' : 'border border-border'}`}
+              >
+                <Text className={`text-xs font-bold ${isOnline ? 'text-white' : 'text-ink'}`}>
+                  {isOnline ? 'Online event' : 'In-person'}
+                </Text>
+              </Pressable>
+              <Pressable
                 disabled={creating || !title.trim() || !startsAt.trim()}
                 onPress={() => void onCreate()}
                 className="items-center rounded-full bg-primary py-3"
@@ -235,16 +247,17 @@ export default function EventsScreen() {
           const going = goingIds.has(item.id);
           return (
             <View className="flex-row items-start justify-between gap-3 rounded-2xl border border-border bg-surface p-4">
-              <View className="min-w-0 flex-1">
+              <Pressable className="min-w-0 flex-1" onPress={() => router.push(`/event/${item.id}`)}>
                 <Text className="text-sm font-semibold text-ink">{item.title}</Text>
                 {item.description ? (
                   <Text className="mt-1 text-sm text-muted">{item.description}</Text>
                 ) : null}
                 <Text className="mt-1 text-xs text-muted">
                   {new Date(item.startsAt).toLocaleString()}
+                  {item.isOnline ? ' · Online' : ''}
                   {item.host?.username ? ` · @${item.host.username}` : ''}
                 </Text>
-              </View>
+              </Pressable>
               <View style={{ gap: 8, alignItems: 'flex-end' }}>
                 <Pressable
                   disabled={busyId === item.id}

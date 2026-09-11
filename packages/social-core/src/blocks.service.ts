@@ -69,6 +69,35 @@ export function createBlocksService(supabase: SupabaseClient) {
       if (error) throw new Error(toUserError(error));
       return Boolean(data);
     },
+
+    /** True if either user has blocked the other. */
+    async isBlockedEither(userA: string, userB: string): Promise<boolean> {
+      const { data, error } = await supabase
+        .from('blocked_users')
+        .select('id')
+        .or(
+          `and(blocker_id.eq.${userA},blocked_id.eq.${userB}),and(blocker_id.eq.${userB},blocked_id.eq.${userA})`,
+        )
+        .maybeSingle();
+      if (error) throw new Error(toUserError(error));
+      return Boolean(data);
+    },
+
+    /** User ids to hide from feeds / suggestions for `userId`. */
+    async listExcludedUserIds(userId: string): Promise<string[]> {
+      const { data, error } = await supabase
+        .from('blocked_users')
+        .select('blocker_id, blocked_id')
+        .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+      if (error) throw new Error(toUserError(error));
+
+      const ids = new Set<string>();
+      for (const row of data ?? []) {
+        const r = row as { blocker_id: string; blocked_id: string };
+        ids.add(r.blocker_id === userId ? r.blocked_id : r.blocker_id);
+      }
+      return [...ids];
+    },
   };
 }
 

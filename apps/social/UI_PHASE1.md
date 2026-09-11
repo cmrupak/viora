@@ -33,7 +33,7 @@ Styling: **Tailwind CSS** (web) + **NativeWind** (mobile)
 
 ## Run
 ```powershell
-cd c:\laragon\www\nexora
+cd <project-root>
 npm run dev:social-web
 npm run dev:social-mobile
 ```

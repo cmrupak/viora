@@ -45,10 +45,22 @@ export function PostCard({ post, onUpdated, onDeleted, showError }: Props) {
   const colors = colorsFor(scheme);
   const authorName = post.author?.displayName || post.author?.username || 'User';
   const username = post.author?.username;
-  const media = post.media?.[0];
+  const mediaItems = post.media ?? [];
   const isOwner = Boolean(user && post.authorId === user.id);
   const [reaction, setReaction] = useState<ReactionType | null>(null);
   const [showReactions, setShowReactions] = useState(false);
+  const [mediaIndex, setMediaIndex] = useState(0);
+  const media = mediaItems[mediaIndex] ?? mediaItems[0];
+  const approvedTags = (post.tags ?? []).filter((t) => t.status === 'approved');
+
+  useEffect(() => {
+    setMediaIndex(0);
+  }, [post.id]);
+
+  useEffect(() => {
+    if (!api || !user || post.id.startsWith('pending-') || post.authorId === user.id) return;
+    void api.posts.recordView(post.id, user.id);
+  }, [api, user, post.id, post.authorId]);
 
   useEffect(() => {
     if (!api || !user || post.id.startsWith('pending-')) return;
@@ -128,33 +140,87 @@ export function PostCard({ post, onUpdated, onDeleted, showError }: Props) {
 
   async function onShare() {
     if (!api || !user) return;
-    const previous = post;
-    const next: Post = { ...post, shareCount: post.shareCount + 1 };
-    try {
-      await optimisticMutation({
-        apply: () => onUpdated?.(next),
-        mutation: async () => {
-          await api.shares.createShare(post.id, user.id);
-          await Share.share({
-            message: post.body
-              ? `${post.body.slice(0, 120)}${post.body.length > 120 ? '…' : ''}\n\nviora://post/${post.id}`
-              : `Check out this post on Viora\nviora://post/${post.id}`,
-            title: 'Share on Viora',
-          });
+    Alert.alert('Share', undefined, [
+      {
+        text: 'Repost to feed',
+        onPress: () => {
+          void (async () => {
+            try {
+              await api.shares.share({
+                postId: post.id,
+                userId: user.id,
+                target: 'feed',
+              });
+              onUpdated?.({
+                ...post,
+                shareCount: post.shareCount + 1,
+                repostCount: (post.repostCount ?? 0) + 1,
+              });
+            } catch (err) {
+              showError?.(getErrorMessage(err));
+            }
+          })();
         },
-        rollback: () => onUpdated?.(previous),
-        onError: (err) => showError?.(getErrorMessage(err)),
-      });
-    } catch {
-      /* rolled back / cancelled */
-    }
+      },
+      {
+        text: 'Share link…',
+        onPress: () => {
+          void (async () => {
+            const previous = post;
+            const next: Post = { ...post, shareCount: post.shareCount + 1 };
+            try {
+              await optimisticMutation({
+                apply: () => onUpdated?.(next),
+                mutation: async () => {
+                  await api.shares.share({
+                    postId: post.id,
+                    userId: user.id,
+                    target: 'external',
+                  });
+                  await Share.share({
+                    message: post.body
+                      ? `${post.body.slice(0, 120)}${post.body.length > 120 ? '…' : ''}\n\nviora://post/${post.id}`
+                      : `Check out this post on Viora\nviora://post/${post.id}`,
+                    title: 'Share on Viora',
+                  });
+                },
+                rollback: () => onUpdated?.(previous),
+                onError: (err) => showError?.(getErrorMessage(err)),
+              });
+            } catch {
+              /* cancelled */
+            }
+          })();
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   }
 
-  function onDelete() {
-    if (!api || !user || !isOwner) return;
-    Alert.alert('Delete post', 'Delete this post? This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
+  function onMore() {
+    if (!api || !user) return;
+    const buttons: Array<{
+      text: string;
+      style?: 'cancel' | 'destructive';
+      onPress?: () => void;
+    }> = [{ text: 'Cancel', style: 'cancel' }];
+
+    if (!isOwner) {
+      buttons.unshift({
+        text: 'Hide post',
+        onPress: () => {
+          void (async () => {
+            try {
+              await api.posts.hidePost(post.id, user.id);
+              onDeleted?.(post.id);
+            } catch (err) {
+              showError?.(getErrorMessage(err));
+            }
+          })();
+        },
+      });
+    } else {
+      buttons.unshift({
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
@@ -167,8 +233,10 @@ export function PostCard({ post, onUpdated, onDeleted, showError }: Props) {
             }
           })();
         },
-      },
-    ]);
+      });
+    }
+
+    Alert.alert('Post options', undefined, buttons);
   }
 
   return (
@@ -185,22 +253,58 @@ export function PostCard({ post, onUpdated, onDeleted, showError }: Props) {
             <Text style={[styles.name, { color: colors.ink }]}>{authorName}</Text>
             <Text style={[styles.meta, { color: colors.muted }]}>
               {username ? `@${username}` : ''} · {formatTime(post.createdAt)}
+              {post.editedAt ? ' · Edited' : ''}
+              {post.pinnedAt ? ' · Pinned' : ''}
             </Text>
           </View>
         </Pressable>
-        {isOwner ? (
-          <Pressable onPress={onDelete} hitSlop={8}>
-            <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 12 }}>Delete</Text>
+        <Pressable onPress={onMore} hitSlop={8}>
+            <Text style={{ color: colors.muted, fontWeight: '700', fontSize: 12 }}>More</Text>
           </Pressable>
-        ) : null}
       </View>
 
       <Pressable onPress={() => router.push({ pathname: '/post/[id]', params: { id: post.id } })}>
         {post.body ? <Text style={[styles.body, { color: colors.ink }]}>{post.body}</Text> : null}
-        {media ? (
-          <Image source={{ uri: media.url }} style={styles.media} resizeMode="cover" />
-        ) : null}
+        {(post.feeling || post.locationName || approvedTags.length > 0) && (
+          <Text style={[styles.meta, { color: colors.muted, marginBottom: 8 }]}>
+            {[
+              post.feeling ? `Feeling ${post.feeling}` : null,
+              post.locationName ? `at ${post.locationName}` : null,
+              approvedTags.length
+                ? `with ${approvedTags
+                    .map((t) => t.taggedUser?.displayName || t.taggedUser?.username || 'someone')
+                    .join(', ')}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </Text>
+        )}
       </Pressable>
+      {media ? (
+        <View>
+          <Pressable onPress={() => router.push({ pathname: '/post/[id]', params: { id: post.id } })}>
+            <Image source={{ uri: media.url }} style={styles.media} resizeMode="cover" />
+          </Pressable>
+          {mediaItems.length > 1 ? (
+            <View style={styles.carouselRow}>
+              <Pressable
+                onPress={() =>
+                  setMediaIndex((i) => (i - 1 + mediaItems.length) % mediaItems.length)
+                }
+              >
+                <Text style={{ color: colors.brand, fontWeight: '800' }}>Prev</Text>
+              </Pressable>
+              <Text style={{ color: colors.muted, fontSize: 12 }}>
+                {mediaIndex + 1}/{mediaItems.length}
+              </Text>
+              <Pressable onPress={() => setMediaIndex((i) => (i + 1) % mediaItems.length)}>
+                <Text style={{ color: colors.brand, fontWeight: '800' }}>Next</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
       {showReactions ? (
         <View style={styles.reactionRow}>
@@ -344,6 +448,12 @@ const styles = StyleSheet.create({
   meta: { fontSize: 12 },
   body: { fontSize: 16, lineHeight: 22 },
   media: { width: '100%', height: 220, borderRadius: 12, marginTop: 4 },
+  carouselRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   action: {
     borderWidth: 1,

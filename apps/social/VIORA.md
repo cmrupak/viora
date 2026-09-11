@@ -62,7 +62,7 @@ node packages/social-core/supabase/apply-migration.mjs 003_full_social_schema.sq
 ## Run
 
 ```powershell
-cd c:\laragon\www\nexora
+cd <project-root>
 npm run dev:social-web
 npm run dev:social-mobile
 ```

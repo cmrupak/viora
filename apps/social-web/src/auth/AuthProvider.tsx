@@ -112,7 +112,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!api) throw new Error('Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in apps/social-web/.env');
         const result = await api.auth.login(input);
         setUser(result.user);
-        if (result.user) setProfile(await api.auth.ensureProfile(result.user.id));
+        if (result.user) {
+          setProfile(await api.auth.ensureProfile(result.user.id));
+          const ua = typeof navigator !== 'undefined' ? navigator.userAgent : null;
+          void api.settings
+            .recordLoginEvent(result.user.id, {
+              userAgent: ua,
+              deviceLabel: ua ? ua.slice(0, 80) : 'Web',
+            })
+            .catch(() => undefined);
+        }
       },
       async register(input) {
         if (!api) throw new Error('Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in apps/social-web/.env');

@@ -1,5 +1,5 @@
 {
-  "name": "nexora",
+  "name": "viora",
   "private": true,
   "version": "1.0.0",
   "description": "Viora social app (web + mobile) with shared @viora/core. Optional legacy API workspace retained.",
@@ -14,7 +14,7 @@
     "dev": "npm run dev:social-web",
     "dev:social-web": "npm run dev --workspace=@viora/web",
     "dev:social-mobile": "npm run start --workspace=@viora/mobile",
-    "dev:api": "npm run dev --workspace=@nexora/api",
+    "dev:api": "npm run dev --workspace=@viora/api",
     "build": "npm run build --workspace=@viora/web",
     "build:social-web": "npm run build --workspace=@viora/web",
     "preview": "npm run preview --workspace=@viora/web",
@@ -33,9 +33,13 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",
+    "@types/nodemailer": "^8.0.1",
     "eslint": "^9.24.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.29.1"
+  },
+  "dependencies": {
+    "nodemailer": "^10.0.3"
   }
 }

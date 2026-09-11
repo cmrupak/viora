@@ -9,7 +9,7 @@ import type {
 } from '../../types';
 import { createId, hashPassword, nowIso } from '../../utils';
 
-const DB_KEY = 'nexora.local.db.v1';
+const DB_KEY = 'viora.local.db.v1';
 
 export interface LocalAccount {
   uid: string;
@@ -75,7 +75,7 @@ async function seedDb(): Promise<LocalDb> {
     {
       id: 'rec_welcome',
       userId: userUid,
-      title: 'Welcome to Nexora',
+      title: 'Welcome to Viora',
       description: 'This is a sample record you can view, edit, or delete.',
       status: 'active',
       deleted: false,

@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -24,6 +25,7 @@ export default function FeedScreen() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [activeStory, setActiveStory] = useState<Story | null>(null);
+  const [replyBody, setReplyBody] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -106,6 +108,14 @@ export default function FeedScreen() {
             Your story
           </Text>
         </Pressable>
+        <Pressable onPress={() => router.push('/highlights')} className="w-16 items-center">
+          <View className="h-14 w-14 items-center justify-center rounded-full border border-border bg-surface">
+            <Text className="text-base font-bold text-muted">★</Text>
+          </View>
+          <Text className="mt-1 w-full text-center text-[10px] font-semibold text-ink" numberOfLines={1}>
+            Highlights
+          </Text>
+        </Pressable>
         {stories.map((story) => {
           const author = story.author;
           const label = author?.displayName?.split(' ')[0] || author?.username || 'Story';
@@ -183,25 +193,78 @@ export default function FeedScreen() {
       ))}
 
       <Modal visible={Boolean(activeStory)} transparent animationType="fade">
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: 16 }}
-          onPress={() => setActiveStory(null)}
+        <View
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', padding: 16 }}
         >
-          <Text className="mb-3 text-center text-base font-bold text-white">
+          <Pressable onPress={() => setActiveStory(null)} className="mb-3 self-end">
+            <Text className="font-bold text-white">Close</Text>
+          </Pressable>
+          <Text className="mb-2 text-center text-base font-bold text-white">
             {activeStory?.author?.displayName || activeStory?.author?.username || 'Story'}
           </Text>
+          {activeStory?.audience === 'close_friends' ? (
+            <Text className="mb-2 text-center text-xs font-semibold text-emerald-300">
+              Close friends
+            </Text>
+          ) : null}
           {media?.mediaType === 'image' || (media && media.mediaType !== 'video') ? (
             <Image
               source={{ uri: media.url }}
-              style={{ width: '100%', height: 420, borderRadius: 16 }}
+              style={{ width: '100%', height: 360, borderRadius: 16 }}
               resizeMode="contain"
             />
           ) : media ? (
-            <Text className="text-center text-white">Open video from web for now.</Text>
+            <Text className="text-center text-white">Video story — open on web to play.</Text>
           ) : (
             <Text className="text-center text-white">No media</Text>
           )}
-        </Pressable>
+          {(media?.stickers ?? []).map((s) => (
+            <Text key={s.id} className="mt-2 text-center text-xs text-white/80">
+              {s.type}:{' '}
+              {String(
+                s.payload.question ||
+                  s.payload.text ||
+                  s.payload.title ||
+                  s.payload.name ||
+                  s.payload.username ||
+                  '',
+              )}
+            </Text>
+          ))}
+          {user && activeStory && activeStory.authorId !== user.id ? (
+            <View className="mt-4 flex-row gap-2">
+              <TextInput
+                value={replyBody}
+                onChangeText={setReplyBody}
+                placeholder="Reply via DM…"
+                placeholderTextColor="#aaa"
+                className="flex-1 rounded-full bg-white/15 px-4 py-2 text-white"
+              />
+              <Pressable
+                onPress={() => {
+                  void (async () => {
+                    if (!api || !user || !activeStory || !replyBody.trim()) return;
+                    try {
+                      const { conversationId } = await api.stories.replyViaDm(
+                        activeStory.id,
+                        user.id,
+                        replyBody.trim(),
+                      );
+                      setActiveStory(null);
+                      setReplyBody('');
+                      router.push(`/messages/${conversationId}`);
+                    } catch (err) {
+                      setError(getErrorMessage(err));
+                    }
+                  })();
+                }}
+                className="items-center justify-center rounded-full bg-primary px-4"
+              >
+                <Text className="font-bold text-white">Send</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
       </Modal>
     </ScrollView>
   );

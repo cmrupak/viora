@@ -11,18 +11,43 @@ export function validateLogin(input: { email: string; password: string }) {
   return errors;
 }
 
+export type RegisterField =
+  | 'firstName'
+  | 'lastName'
+  | 'dateOfBirth'
+  | 'gender'
+  | 'customGender'
+  | 'email'
+  | 'password';
+
 export function validateRegister(input: {
-  displayName: string;
-  username: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  gender: 'Male' | 'Female' | 'Custom' | '';
+  customGender: string;
   email: string;
   password: string;
 }) {
-  const errors: Partial<Record<'displayName' | 'username' | 'email' | 'password', string>> = {};
-  if (!input.displayName.trim()) errors.displayName = 'Display name is required.';
-  const username = input.username.trim().toLowerCase();
-  if (!username) errors.username = 'Username is required.';
-  else if (username.length < 3) errors.username = 'Username must be at least 3 characters.';
-  else if (!/^[a-z0-9_]+$/.test(username)) errors.username = 'Use letters, numbers, and underscores only.';
+  const errors: Partial<Record<RegisterField, string>> = {};
+  if (!input.firstName.trim()) errors.firstName = 'First name is required.';
+  if (!input.lastName.trim()) errors.lastName = 'Last name is required.';
+  if (!input.dateOfBirth.trim()) errors.dateOfBirth = 'Date of birth is required.';
+  else if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dateOfBirth)) {
+    errors.dateOfBirth = 'Enter a valid date.';
+  } else {
+    const dob = new Date(`${input.dateOfBirth}T00:00:00`);
+    const now = new Date();
+    if (Number.isNaN(dob.getTime()) || dob > now) errors.dateOfBirth = 'Enter a valid date of birth.';
+    else {
+      const age = (now.getTime() - dob.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+      if (age < 13) errors.dateOfBirth = 'You must be at least 13 years old.';
+    }
+  }
+  if (!input.gender) errors.gender = 'Select your gender.';
+  else if (input.gender === 'Custom' && !input.customGender.trim()) {
+    errors.customGender = 'Enter a custom gender.';
+  }
   if (!input.email.trim()) errors.email = 'Email is required.';
   else if (!isValidEmail(input.email)) errors.email = 'Enter a valid email address.';
   if (!input.password) errors.password = 'Password is required.';

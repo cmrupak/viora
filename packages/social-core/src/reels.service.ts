@@ -14,6 +14,10 @@ import type {
 export type CreateReelInput = {
   authorId: string;
   caption?: string;
+  audioTitle?: string | null;
+  audioArtist?: string | null;
+  audioUrl?: string | null;
+  commentsDisabled?: boolean;
   media: Array<{
     url: string;
     mediaType?: MediaType;
@@ -38,6 +42,14 @@ export type ReelMediaUploadInput = {
 };
 
 const REEL_SELECT = `
+  id, author_id, caption, audio_title, audio_artist, audio_url, comments_disabled,
+  like_count, comment_count, view_count,
+  deleted_at, created_at, updated_at,
+  author:profiles!reels_author_id_fkey(${PROFILE_SELECT}),
+  media:reel_media(id, reel_id, url, media_type, thumbnail_url, duration_seconds, sort_order, created_at, updated_at)
+`;
+
+const REEL_SELECT_FALLBACK = `
   id, author_id, caption, like_count, comment_count, view_count,
   deleted_at, created_at, updated_at,
   author:profiles!reels_author_id_fkey(${PROFILE_SELECT}),
@@ -70,7 +82,7 @@ function mapReelMediaRow(row: Record<string, unknown>): ReelMedia {
 
 export function mapReelRow(
   row: Record<string, unknown>,
-  opts?: { liked?: boolean },
+  opts?: { liked?: boolean; saved?: boolean },
 ): Reel {
   const mediaRaw = row.media ?? row.reel_media;
   const media = Array.isArray(mediaRaw)
@@ -81,10 +93,15 @@ export function mapReelRow(
     id: String(row.id),
     authorId: String(row.author_id),
     caption: String(row.caption ?? ''),
+    audioTitle: row.audio_title == null ? null : String(row.audio_title),
+    audioArtist: row.audio_artist == null ? null : String(row.audio_artist),
+    audioUrl: row.audio_url == null ? null : String(row.audio_url),
+    commentsDisabled: Boolean(row.comments_disabled),
     likeCount: Number(row.like_count ?? 0),
     commentCount: Number(row.comment_count ?? 0),
     viewCount: Number(row.view_count ?? 0),
     likedByCurrentUser: Boolean(opts?.liked),
+    savedByCurrentUser: Boolean(opts?.saved),
     deletedAt: row.deleted_at == null ? null : String(row.deleted_at),
     createdAt: String(row.created_at ?? ''),
     updatedAt: row.updated_at == null ? undefined : String(row.updated_at),
@@ -108,20 +125,47 @@ export function mapReelCommentRow(row: Record<string, unknown>): ReelComment {
   };
 }
 
-async function attachReelLikes(
+async function attachReelFlags(
   supabase: SupabaseClient,
   reels: Reel[],
   currentUserId?: string | null,
 ): Promise<Reel[]> {
   if (!currentUserId || reels.length === 0) return reels;
   const ids = reels.map((r) => r.id);
-  const { data } = await supabase
+  const { data: likes } = await supabase
     .from('reel_likes')
     .select('reel_id')
     .eq('user_id', currentUserId)
     .in('reel_id', ids);
-  const liked = new Set((data ?? []).map((r) => String((r as { reel_id: string }).reel_id)));
-  return reels.map((r) => ({ ...r, likedByCurrentUser: liked.has(r.id) }));
+  let saves: Array<{ reel_id: string }> | null = null;
+  const savesResult = await supabase
+    .from('reel_saves')
+    .select('reel_id')
+    .eq('user_id', currentUserId)
+    .in('reel_id', ids);
+  if (!savesResult.error) {
+    saves = savesResult.data as Array<{ reel_id: string }> | null;
+  }
+  const liked = new Set((likes ?? []).map((r) => String((r as { reel_id: string }).reel_id)));
+  const saved = new Set((saves ?? []).map((r) => String(r.reel_id)));
+  return reels.map((r) => ({
+    ...r,
+    likedByCurrentUser: liked.has(r.id),
+    savedByCurrentUser: saved.has(r.id),
+  }));
+}
+
+async function selectReels(
+  _supabase: SupabaseClient,
+  run: (
+    select: string,
+  ) => PromiseLike<{ data: unknown; error: { message?: string } | null }>,
+): Promise<{ data: unknown; error: { message?: string } | null }> {
+  let result = await run(REEL_SELECT);
+  if (result.error && /audio_|comments_disabled/i.test(result.error.message ?? '')) {
+    result = await run(REEL_SELECT_FALLBACK);
+  }
+  return result;
 }
 
 export function createReelsService(supabase: SupabaseClient) {
@@ -131,14 +175,33 @@ export function createReelsService(supabase: SupabaseClient) {
         throw new Error('Add video media to create a reel.');
       }
 
-      const { data, error } = await supabase
-        .from('reels')
-        .insert({
-          author_id: input.authorId,
-          caption: (input.caption ?? '').trim(),
-        })
-        .select(REEL_SELECT)
-        .single();
+      const insertRow: Record<string, unknown> = {
+        author_id: input.authorId,
+        caption: (input.caption ?? '').trim(),
+        audio_title: input.audioTitle ?? null,
+        audio_artist: input.audioArtist ?? null,
+        audio_url: input.audioUrl ?? null,
+        comments_disabled: Boolean(input.commentsDisabled),
+      };
+
+      let data: unknown = null;
+      let error: { message?: string } | null = null;
+      const first = await supabase.from('reels').insert(insertRow).select(REEL_SELECT).single();
+      data = first.data;
+      error = first.error;
+
+      if (error && /audio_|comments_disabled/i.test(error.message ?? '')) {
+        const fallback = await supabase
+          .from('reels')
+          .insert({
+            author_id: input.authorId,
+            caption: (input.caption ?? '').trim(),
+          })
+          .select(REEL_SELECT_FALLBACK)
+          .single();
+        data = fallback.data;
+        error = fallback.error;
+      }
 
       if (error) throw new Error(toUserError(error));
 
@@ -169,36 +232,40 @@ export function createReelsService(supabase: SupabaseClient) {
       params: PageParams & { currentUserId?: string | null } = {},
     ): Promise<Reel[]> {
       const limit = Math.min(params.limit ?? 20, 50);
-      let query = supabase
-        .from('reels')
-        .select(REEL_SELECT)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+      const { data, error } = await selectReels(supabase, async (select) => {
+        let query = supabase
+          .from('reels')
+          .select(select)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .limit(limit);
+        if (params.cursor) {
+          query = query.lt('created_at', params.cursor);
+        }
+        return query;
+      });
 
-      if (params.cursor) {
-        query = query.lt('created_at', params.cursor);
-      }
-
-      const { data, error } = await query;
       if (error) throw new Error(toUserError(error));
 
-      const reels = (data ?? []).map((row) => mapReelRow(row as Record<string, unknown>));
-      return attachReelLikes(supabase, reels, params.currentUserId);
+      const rows = Array.isArray(data) ? data : [];
+      const reels = rows.map((row) => mapReelRow(row as Record<string, unknown>));
+      return attachReelFlags(supabase, reels, params.currentUserId);
     },
 
     async getById(reelId: string, currentUserId?: string | null): Promise<Reel | null> {
-      const { data, error } = await supabase
-        .from('reels')
-        .select(REEL_SELECT)
-        .eq('id', reelId)
-        .is('deleted_at', null)
-        .maybeSingle();
+      const { data, error } = await selectReels(supabase, async (select) =>
+        supabase
+          .from('reels')
+          .select(select)
+          .eq('id', reelId)
+          .is('deleted_at', null)
+          .maybeSingle(),
+      );
 
       if (error) throw new Error(toUserError(error));
       if (!data) return null;
 
-      const [reel] = await attachReelLikes(
+      const [reel] = await attachReelFlags(
         supabase,
         [mapReelRow(data as Record<string, unknown>)],
         currentUserId,
@@ -230,6 +297,35 @@ export function createReelsService(supabase: SupabaseClient) {
       return { active: true };
     },
 
+    async toggleSave(reelId: string, userId: string): Promise<ToggleResult> {
+      const { data: existing, error: findError } = await supabase
+        .from('reel_saves')
+        .select('id')
+        .eq('reel_id', reelId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (findError) {
+        if (/reel_saves|relation/i.test(findError.message ?? '')) {
+          throw new Error('Reel saves require migration 012.');
+        }
+        throw new Error(toUserError(findError));
+      }
+
+      if (existing) {
+        const { error } = await supabase.from('reel_saves').delete().eq('id', existing.id);
+        if (error) throw new Error(toUserError(error));
+        return { active: false };
+      }
+
+      const { error } = await supabase.from('reel_saves').insert({
+        reel_id: reelId,
+        user_id: userId,
+      });
+      if (error) throw new Error(toUserError(error));
+      return { active: true };
+    },
+
     async listComments(reelId: string, params: PageParams = {}): Promise<ReelComment[]> {
       const limit = Math.min(params.limit ?? 50, 100);
       let query = supabase
@@ -252,6 +348,15 @@ export function createReelsService(supabase: SupabaseClient) {
     async createComment(input: CreateReelCommentInput): Promise<ReelComment> {
       const body = input.body.trim();
       if (!body) throw new Error('Comment cannot be empty.');
+
+      const { data: reel } = await supabase
+        .from('reels')
+        .select('comments_disabled')
+        .eq('id', input.reelId)
+        .maybeSingle();
+      if (reel && Boolean((reel as { comments_disabled?: boolean }).comments_disabled)) {
+        throw new Error('Comments are turned off for this reel.');
+      }
 
       const { data, error } = await supabase
         .from('reel_comments')

@@ -64,7 +64,7 @@ export interface StatsService {
   getDashboardStats(): Promise<DashboardStats>;
 }
 
-export interface NexoraBackend {
+export interface VioraBackend {
   kind: 'local' | 'api';
   auth: AuthService;
   users: UserService;

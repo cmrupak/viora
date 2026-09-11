@@ -76,16 +76,25 @@ export default function PostDetailScreen() {
         <CommentList
           postId={post.id}
           comments={comments}
+          commentsDisabled={post.commentsDisabled}
+          isPostOwner={Boolean(user && user.id === post.authorId)}
+          onToggleCommentsDisabled={() => {
+            if (!api || !user || !post) return;
+            void (async () => {
+              try {
+                const next = await api.posts.setCommentsDisabled(
+                  post.id,
+                  user.id,
+                  !post.commentsDisabled,
+                );
+                setPost(next);
+              } catch (err) {
+                setError(getErrorMessage(err));
+              }
+            })();
+          }}
           onChange={(next) => {
             setComments(next);
-            setPost((p) =>
-              p
-                ? {
-                    ...p,
-                    commentCount: next.length,
-                  }
-                : p,
-            );
           }}
         />
       ) : null}

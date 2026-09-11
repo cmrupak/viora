@@ -6,7 +6,7 @@ import {
   paginate,
   validateRecord,
   type RecordItem,
-} from '@nexora/shared';
+} from '@viora/shared';
 import { writeAudit } from '../auth.ts';
 import { createId, db, nowIso } from '../db.ts';
 import { asyncHandler, requireAdmin, requireAuth, type AuthedRequest } from '../middleware.ts';

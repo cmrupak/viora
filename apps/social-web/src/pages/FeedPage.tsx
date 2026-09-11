@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { getErrorMessage, type Post, type Story } from '@viora/core';
+import {
+  getErrorMessage,
+  type Post,
+  type Story,
+  type StoryHighlight,
+  type StoryView,
+} from '@viora/core';
 import { useAuth } from '../auth/AuthProvider';
 import { PostCard } from '../components/PostCard';
-import { Avatar, Button, Modal } from '../components/ui';
+import { Avatar, Button, Input, Modal } from '../components/ui';
 import { SkeletonPost } from '../components/ui/Skeleton';
+import { useToast } from '../components/ui/Toast';
 
 type FeedLocationState = {
   pendingPost?: Post;
@@ -13,10 +20,15 @@ type FeedLocationState = {
 
 export function FeedPage() {
   const { api, user, profile } = useAuth();
+  const { push } = useToast();
+  const navigate = useNavigate();
   const location = useLocation();
   const [posts, setPosts] = useState<Post[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [activeStory, setActiveStory] = useState<Story | null>(null);
+  const [replyBody, setReplyBody] = useState('');
+  const [viewers, setViewers] = useState<StoryView[] | null>(null);
+  const [highlights, setHighlights] = useState<StoryHighlight[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
@@ -38,12 +50,15 @@ export function FeedPage() {
       setLoading(true);
       setError('');
       try {
-        const [feed, storyList] = await Promise.all([
+        const [feed, storyList, settings] = await Promise.all([
           api.posts.listFeed({ currentUserId: user.id, limit: 20 }),
           api.stories.listActiveStories({ currentUserId: user.id, limit: 40 }),
+          api.settings.getSettings(user.id).catch(() => null),
         ]);
         if (!active) return;
-        setPosts(mergePending(feed, pending));
+        const filtered =
+          settings?.hideSensitive ? feed.filter((p) => !p.isSensitive || p.authorId === user.id) : feed;
+        setPosts(mergePending(filtered, pending));
         setStories(storyList);
         setCursor(feed.length ? feed[feed.length - 1]!.createdAt : null);
         setHasMore(feed.length >= 20);
@@ -100,6 +115,8 @@ export function FeedPage() {
 
   async function openStory(story: Story) {
     setActiveStory(story);
+    setReplyBody('');
+    setViewers(null);
     if (api && user && !story.viewedByCurrentUser) {
       try {
         await api.stories.markViewed(story.id, user.id);
@@ -110,10 +127,64 @@ export function FeedPage() {
         /* non-blocking */
       }
     }
+    if (api && user && story.authorId === user.id) {
+      try {
+        const [viewerList, myHighlights] = await Promise.all([
+          api.stories.listViewers(story.id, user.id),
+          api.stories.listHighlights(user.id),
+        ]);
+        setViewers(viewerList);
+        setHighlights(myHighlights);
+      } catch {
+        setViewers([]);
+      }
+    }
+  }
+
+  async function sendReply() {
+    if (!api || !user || !activeStory || !replyBody.trim()) return;
+    try {
+      const { conversationId } = await api.stories.replyViaDm(
+        activeStory.id,
+        user.id,
+        replyBody.trim(),
+      );
+      push('Reply sent.', 'success');
+      setActiveStory(null);
+      navigate(`/messages/${conversationId}`);
+    } catch (err) {
+      push(getErrorMessage(err), 'error');
+    }
+  }
+
+  async function addToHighlight(highlightId: string) {
+    if (!api || !user || !activeStory) return;
+    try {
+      await api.stories.addStoryToHighlight(highlightId, activeStory.id, user.id);
+      push('Added to highlight.', 'success');
+    } catch (err) {
+      push(getErrorMessage(err), 'error');
+    }
+  }
+
+  async function votePoll(storyMediaId: string, stickerId: string, option: string) {
+    if (!api || !user) return;
+    try {
+      await api.stories.respondToSticker({
+        storyMediaId,
+        stickerId,
+        userId: user.id,
+        response: { option },
+      });
+      push(`Voted: ${option}`, 'success');
+    } catch (err) {
+      push(getErrorMessage(err), 'error');
+    }
   }
 
   const name = profile?.displayName?.split(' ')[0] || 'there';
   const media = activeStory?.media?.[0];
+  const isOwn = Boolean(user && activeStory && activeStory.authorId === user.id);
 
   return (
     <section className="mx-auto w-full max-w-2xl space-y-4">
@@ -140,6 +211,14 @@ export function FeedPage() {
               Your story
             </span>
           </Link>
+          <Link to="/highlights" className="flex w-16 shrink-0 flex-col items-center gap-1">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-surface-2 text-xs font-bold text-muted">
+              ★
+            </div>
+            <span className="w-full truncate text-center text-[10px] font-semibold text-ink">
+              Highlights
+            </span>
+          </Link>
           {stories.map((story) => {
             const author = story.author;
             const label = author?.displayName?.split(' ')[0] || author?.username || 'Story';
@@ -154,7 +233,9 @@ export function FeedPage() {
                   className={`rounded-full p-0.5 ${
                     story.viewedByCurrentUser
                       ? 'bg-border'
-                      : 'bg-gradient-to-tr from-primary to-primary-dark'
+                      : story.audience === 'close_friends'
+                        ? 'bg-gradient-to-tr from-emerald-400 to-emerald-600'
+                        : 'bg-gradient-to-tr from-primary to-primary-dark'
                   }`}
                 >
                   <Avatar
@@ -237,15 +318,110 @@ export function FeedPage() {
         }
         onClose={() => setActiveStory(null)}
       >
-        {media ? (
-          media.mediaType === 'video' ? (
-            <video src={media.url} controls autoPlay className="max-h-[70vh] w-full rounded-xl" />
+        <div className="space-y-3">
+          {activeStory?.audience === 'close_friends' ? (
+            <p className="text-xs font-semibold text-emerald-600">Close friends</p>
+          ) : null}
+          {media ? (
+            <div className="relative overflow-hidden rounded-xl bg-black">
+              {media.mediaType === 'video' ? (
+                <video src={media.url} controls autoPlay className="max-h-[60vh] w-full" />
+              ) : (
+                <img src={media.url} alt="" className="max-h-[60vh] w-full object-contain" />
+              )}
+              {(media.stickers ?? []).map((s) => (
+                <div
+                  key={s.id}
+                  className="absolute max-w-[75%] rounded-xl bg-black/65 px-2 py-1 text-[11px] text-white"
+                  style={{
+                    left: `${s.x * 100}%`,
+                    top: `${s.y * 100}%`,
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  <p className="font-semibold capitalize">{s.type}</p>
+                  <p>
+                    {String(
+                      s.payload.question ||
+                        s.payload.text ||
+                        s.payload.title ||
+                        s.payload.name ||
+                        s.payload.username ||
+                        s.payload.prompt ||
+                        s.payload.label ||
+                        '',
+                    )}
+                  </p>
+                  {s.type === 'poll' && Array.isArray(s.payload.options) ? (
+                    <div className="mt-1 flex gap-1">
+                      {(s.payload.options as string[]).map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          className="rounded-full bg-white/20 px-2 py-0.5"
+                          onClick={() => void votePoll(media.id, s.id, opt)}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
           ) : (
-            <img src={media.url} alt="" className="max-h-[70vh] w-full rounded-xl object-contain" />
-          )
-        ) : (
-          <p className="text-sm text-muted">No media on this story.</p>
-        )}
+            <p className="text-sm text-muted">No media on this story.</p>
+          )}
+
+          {!isOwn ? (
+            <div className="flex gap-2">
+              <Input
+                value={replyBody}
+                onChange={(e) => setReplyBody(e.target.value)}
+                placeholder="Reply via DM…"
+              />
+              <Button type="button" onClick={() => void sendReply()}>
+                Send
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase text-muted">
+                Seen by {viewers?.length ?? 0}
+              </p>
+              <ul className="max-h-28 space-y-1 overflow-y-auto">
+                {(viewers ?? []).map((v) => (
+                  <li key={v.id} className="flex items-center gap-2 text-xs text-ink">
+                    <Avatar
+                      src={v.viewer?.avatarUrl}
+                      name={v.viewer?.displayName || v.viewer?.username || 'User'}
+                      size={24}
+                    />
+                    {v.viewer?.displayName || v.viewer?.username || 'Viewer'}
+                  </li>
+                ))}
+              </ul>
+              {highlights.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {highlights.map((h) => (
+                    <Button
+                      key={h.id}
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => void addToHighlight(h.id)}
+                    >
+                      Add to {h.title}
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <Link to="/highlights" className="text-xs font-semibold text-primary">
+                  Create a highlight to save this story
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
       </Modal>
     </section>
   );

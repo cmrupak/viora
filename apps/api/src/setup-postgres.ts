@@ -8,8 +8,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 config({ path: resolve(here, '../.env') });
 
 /**
- * Creates the `nexora` database if missing, then runs table migrations.
- * Usage: npm run db:setup --workspace=@nexora/api
+ * Creates the `viora` database if missing, then runs table migrations.
+ * Usage: npm run db:setup --workspace=@viora/api
  */
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -18,7 +18,7 @@ async function main() {
   }
 
   const parsed = new URL(url);
-  const dbName = parsed.pathname.replace(/^\//, '') || 'nexora';
+  const dbName = parsed.pathname.replace(/^\//, '') || 'viora';
   const adminUrl = new URL(url);
   adminUrl.pathname = '/postgres';
 

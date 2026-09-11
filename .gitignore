@@ -8,6 +8,7 @@ web-build
 .env
 .env.local
 .env.*.local
+.env.smtp
 apps/api/.env
 apps/social/.env
 apps/social-web/.env

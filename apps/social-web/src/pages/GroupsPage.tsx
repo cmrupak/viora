@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { getErrorMessage, type Group } from '@viora/core';
+import { Link } from 'react-router-dom';
+import { getErrorMessage, type Group, type GroupVisibility } from '@viora/core';
 import { useAuth } from '../auth/AuthProvider';
 import { Button, Input, Label, Textarea } from '../components/ui';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -7,9 +8,10 @@ import { Skeleton } from '../components/ui/Skeleton';
 export function GroupsPage() {
   const { api, user } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
-  const [joinedIds, setJoinedIds] = useState<Set<string>>(new Set());
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [visibility, setVisibility] = useState<GroupVisibility>('public');
+  const [requiresApproval, setRequiresApproval] = useState(false);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -20,20 +22,8 @@ export function GroupsPage() {
     setLoading(true);
     setError('');
     try {
-      const list = await api.groups.list({ limit: 40 });
+      const list = await api.groups.list({ limit: 40, currentUserId: user.id });
       setGroups(list);
-      const memberships = await Promise.all(
-        list.map(async (g) => {
-          if (g.ownerId === user.id) return g.id;
-          try {
-            const members = await api.groups.listMembers(g.id, { limit: 100 });
-            return members.some((m) => m.userId === user.id) ? g.id : null;
-          } catch {
-            return null;
-          }
-        }),
-      );
-      setJoinedIds(new Set(memberships.filter((id): id is string => Boolean(id))));
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -56,16 +46,27 @@ export function GroupsPage() {
         name: name.trim(),
         ownerId: user.id,
         description: description.trim() || null,
+        visibility,
+        requiresPostApproval: requiresApproval,
       });
-      try {
-        await api.groups.join(created.id, user.id);
-      } catch {
-        /* owner may already be a member via trigger */
-      }
       setName('');
       setDescription('');
-      setGroups((prev) => [created, ...prev]);
-      setJoinedIds((prev) => new Set([...prev, created.id]));
+      setVisibility('public');
+      setRequiresApproval(false);
+      setGroups((prev) => [
+        {
+          ...created,
+          myMembership: {
+            id: 'local',
+            groupId: created.id,
+            userId: user.id,
+            role: 'owner',
+            status: 'active',
+            createdAt: created.createdAt,
+          },
+        },
+        ...prev,
+      ]);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -75,20 +76,33 @@ export function GroupsPage() {
 
   async function onToggle(group: Group) {
     if (!api || !user) return;
-    const joined = joinedIds.has(group.id);
+    const membership = group.myMembership;
+    const joined = membership?.status === 'active' || membership?.status === 'pending';
     setBusyId(group.id);
     setError('');
     try {
       if (joined) {
         await api.groups.leave(group.id, user.id);
-        setJoinedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(group.id);
-          return next;
-        });
+        setGroups((prev) =>
+          prev.map((g) => (g.id === group.id ? { ...g, myMembership: null } : g)),
+        );
       } else {
-        await api.groups.join(group.id, user.id);
-        setJoinedIds((prev) => new Set([...prev, group.id]));
+        const questions = await api.groups.listJoinQuestions(group.id);
+        const answers =
+          questions.length > 0
+            ? questions.map((q) => ({
+                questionId: q.id,
+                answer: window.prompt(q.prompt) || '',
+              }))
+            : undefined;
+        const mem = await api.groups.requestJoin({
+          groupId: group.id,
+          userId: user.id,
+          answers,
+        });
+        setGroups((prev) =>
+          prev.map((g) => (g.id === group.id ? { ...g, myMembership: mem } : g)),
+        );
       }
     } catch (err) {
       setError(getErrorMessage(err));
@@ -132,6 +146,33 @@ export function GroupsPage() {
             maxLength={500}
           />
         </div>
+        <div>
+          <Label>Visibility</Label>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {(['public', 'private', 'hidden'] as GroupVisibility[]).map((v) => (
+              <Button
+                key={v}
+                type="button"
+                size="sm"
+                variant={visibility === v ? 'primary' : 'secondary'}
+                onClick={() => setVisibility(v)}
+              >
+                {v}
+              </Button>
+            ))}
+          </div>
+          <p className="mt-1 text-[11px] text-muted">
+            Public = open join · Private = approval · Hidden = invite-only / unlisted
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={requiresApproval}
+            onChange={(e) => setRequiresApproval(e.target.checked)}
+          />
+          Require post approval
+        </label>
         <Button type="submit" disabled={creating || !name.trim()}>
           {creating ? 'Creating…' : 'Create group'}
         </Button>
@@ -153,7 +194,9 @@ export function GroupsPage() {
 
       <ul className="space-y-2">
         {groups.map((group) => {
-          const joined = joinedIds.has(group.id);
+          const membership = group.myMembership;
+          const joined = membership?.status === 'active';
+          const pending = membership?.status === 'pending';
           const isOwner = group.ownerId === user?.id;
           return (
             <li
@@ -161,22 +204,32 @@ export function GroupsPage() {
               className="flex flex-wrap items-start justify-between gap-3 rounded-[14px] border border-border bg-surface p-4"
             >
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-ink">{group.name}</p>
+                <Link to={`/groups/${group.id}`} className="text-sm font-semibold text-ink hover:underline">
+                  {group.name}
+                </Link>
                 {group.description ? (
                   <p className="mt-1 text-sm text-muted">{group.description}</p>
                 ) : null}
-                <p className="mt-1 text-xs text-muted">
-                  {isOwner ? 'You own this group' : `Hosted by @${group.owner?.username ?? 'user'}`}
+                <p className="mt-1 text-xs text-muted capitalize">
+                  {group.visibility ?? (group.isPrivate ? 'private' : 'public')}
+                  {isOwner ? ' · You own this' : ` · @${group.owner?.username ?? 'user'}`}
                 </p>
               </div>
-              <Button
-                size="sm"
-                variant={joined ? 'secondary' : 'primary'}
-                disabled={busyId === group.id || (isOwner && joined)}
-                onClick={() => void onToggle(group)}
-              >
-                {joined ? 'Leave' : 'Join'}
-              </Button>
+              <div className="flex gap-2">
+                <Link to={`/groups/${group.id}`}>
+                  <Button size="sm" variant="secondary">
+                    Open
+                  </Button>
+                </Link>
+                <Button
+                  size="sm"
+                  variant={joined || pending ? 'secondary' : 'primary'}
+                  disabled={busyId === group.id || (isOwner && joined)}
+                  onClick={() => void onToggle(group)}
+                >
+                  {pending ? 'Pending' : joined ? 'Leave' : group.visibility === 'private' ? 'Request' : 'Join'}
+                </Button>
+              </div>
             </li>
           );
         })}

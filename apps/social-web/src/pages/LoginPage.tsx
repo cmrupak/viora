@@ -3,6 +3,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '@viora/core';
 import { useAuth } from '../auth/AuthProvider';
+import { AuthIntroOverlay, useAuthIntro } from '../components/auth/AuthIntro';
 import { AuthLayout } from '../components/auth/AuthLayout';
 import { FieldError, validateLogin } from '../components/auth/validation';
 import { Button, Input, Label } from '../components/ui';
@@ -14,6 +15,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from || '/feed';
+  const { showIntro, text, fading } = useAuthIntro();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,8 +43,12 @@ export function LoginPage() {
     }
   }
 
+  if (showIntro) {
+    return <AuthIntroOverlay text={text} fading={fading} />;
+  }
+
   return (
-    <AuthLayout title="Welcome back" subtitle="Sign in to continue to Viora">
+    <AuthLayout title="Welcome back" subtitle="Sign in to continue to Viora" showGetApp>
       {!configured ? (
         <p className="mb-4 rounded-[12px] border border-danger/30 bg-danger/10 px-3 py-2 text-sm font-semibold text-danger">
           Configure Supabase in <Link to="/setup" className="underline">/setup</Link> first.

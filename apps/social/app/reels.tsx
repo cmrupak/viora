@@ -9,8 +9,8 @@ import {
   View,
   type ViewToken,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
-import { Heart } from 'lucide-react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Heart, Bookmark } from 'lucide-react-native';
 import { getErrorMessage, optimisticMutation, type Reel } from '@viora/core';
 import { useAuth } from '@/auth/AuthProvider';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -21,6 +21,7 @@ const ITEM_HEIGHT = Math.max(520, windowHeight * 0.72);
 
 export default function ReelsScreen() {
   const { api, user } = useAuth();
+  const router = useRouter();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = colors[scheme];
   const [reels, setReels] = useState<Reel[]>([]);
@@ -91,6 +92,24 @@ export default function ReelsScreen() {
     }
   }
 
+  async function onSave(reel: Reel) {
+    if (!api || !user) return;
+    const previous = reel;
+    const next = !reel.savedByCurrentUser;
+    setReels((prev) =>
+      prev.map((r) => (r.id === reel.id ? { ...r, savedByCurrentUser: next } : r)),
+    );
+    try {
+      const result = await api.reels.toggleSave(reel.id, user.id);
+      setReels((prev) =>
+        prev.map((r) => (r.id === reel.id ? { ...r, savedByCurrentUser: result.active } : r)),
+      );
+    } catch (err) {
+      setReels((prev) => prev.map((r) => (r.id === reel.id ? previous : r)));
+      setError(getErrorMessage(err));
+    }
+  }
+
   async function markViewed(reelId: string) {
     if (!api || viewed.current.has(reelId)) return;
     viewed.current.add(reelId);
@@ -122,6 +141,23 @@ export default function ReelsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.bg }}>
+      <View className="flex-row items-center justify-between px-4 pt-3">
+        <Text className="text-lg font-bold text-ink">Reels</Text>
+        <View className="flex-row gap-2">
+          <Pressable
+            onPress={() => router.push('/watch')}
+            className="rounded-full border border-border px-3 py-1.5"
+          >
+            <Text className="text-xs font-bold text-ink">Watch</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/reels/create')}
+            className="rounded-full bg-primary px-3 py-1.5"
+          >
+            <Text className="text-xs font-bold text-white">New</Text>
+          </Pressable>
+        </View>
+      </View>
       {error ? (
         <Text className="px-4 pt-3 text-sm font-semibold text-danger">{error}</Text>
       ) : null}
@@ -168,7 +204,7 @@ export default function ReelsScreen() {
                       </Text>
                     )}
                   </View>
-                  <View className="absolute right-3 bottom-24">
+                  <View className="absolute right-3 bottom-24 gap-3">
                     <Pressable
                       onPress={() => void onLike(item)}
                       className="items-center rounded-full bg-black/50 px-3 py-3"
@@ -180,6 +216,16 @@ export default function ReelsScreen() {
                       />
                       <Text className="mt-1 text-xs font-bold text-white">{item.likeCount}</Text>
                     </Pressable>
+                    <Pressable
+                      onPress={() => void onSave(item)}
+                      className="items-center rounded-full bg-black/50 px-3 py-3"
+                    >
+                      <Bookmark
+                        size={24}
+                        color={item.savedByCurrentUser ? palette.primary : '#fff'}
+                        fill={item.savedByCurrentUser ? palette.primary : 'transparent'}
+                      />
+                    </Pressable>
                   </View>
                   <View className="absolute right-0 bottom-0 left-0 bg-black/55 p-4">
                     <Text className="text-sm font-bold text-white">
@@ -189,6 +235,9 @@ export default function ReelsScreen() {
                       <Text className="mt-1 text-xs text-white/80" numberOfLines={3}>
                         {item.caption}
                       </Text>
+                    ) : null}
+                    {item.audioTitle ? (
+                      <Text className="mt-1 text-xs text-white/70">♪ {item.audioTitle}</Text>
                     ) : null}
                     <Text className="mt-1 text-xs text-white/60">{item.viewCount} views</Text>
                   </View>

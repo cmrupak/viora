@@ -3,6 +3,9 @@
   "platform": "android",
   "packageName": "app.viora.mobile",
   "latestVersion": "1.0.0",
+  "minVersion": "1.0.0",
   "apkPath": "/downloads/viora-android.apk",
-  "notes": "Update VITE_ANDROID_APK_URL or replace public/downloads/viora-android.apk after each EAS build."
+  "apkUrl": "https://vioradev.netlify.app/downloads/viora-android.apk",
+  "notes": "After each EAS Android build: bump apps/social/app.json version, update latestVersion here, replace the APK (or set VITE_ANDROID_APK_URL), then redeploy web.",
+  "publishedAt": "2026-09-11"
 }

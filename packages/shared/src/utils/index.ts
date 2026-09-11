@@ -39,7 +39,7 @@ export function displayName(user: { firstName: string; lastName: string }): stri
 }
 
 export async function hashPassword(password: string): Promise<string> {
-  const payload = `nexora.local:${password}`;
+  const payload = `viora.local:${password}`;
   const cryptoObj = globalThis.crypto;
   if (cryptoObj?.subtle) {
     const data = new TextEncoder().encode(payload);

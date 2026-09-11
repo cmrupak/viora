@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { AppError, ERROR_CODES, avatarPath, pickAvatarId, validateProfile } from '@nexora/shared';
+import { AppError, ERROR_CODES, avatarPath, pickAvatarId, validateProfile } from '@viora/shared';
 import { getUserByUid, writeAudit } from '../auth.ts';
 import { db, nowIso } from '../db.ts';
 import { asyncHandler, requireAuth, type AuthedRequest } from '../middleware.ts';

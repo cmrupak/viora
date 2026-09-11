@@ -43,6 +43,7 @@ export default function ProfileScreen() {
   const [bio, setBio] = useState(profile?.bio ?? '');
   const [website, setWebsite] = useState(profile?.website ?? '');
   const [location, setLocation] = useState(profile?.location ?? '');
+  const [isPrivate, setIsPrivate] = useState(Boolean(profile?.isPrivate));
   const [previewUrl, setPreviewUrl] = useState<string | null>(profile?.avatarUrl ?? null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -55,6 +56,7 @@ export default function ProfileScreen() {
     setBio(profile?.bio ?? '');
     setWebsite(profile?.website ?? '');
     setLocation(profile?.location ?? '');
+    setIsPrivate(Boolean(profile?.isPrivate));
     setPreviewUrl(profile?.avatarUrl ?? null);
   }, [profile]);
 
@@ -82,6 +84,7 @@ export default function ProfileScreen() {
       bio: bio.trim() || null,
       website: website.trim() || null,
       location: location.trim() || null,
+      isPrivate,
     };
 
     try {
@@ -94,6 +97,7 @@ export default function ProfileScreen() {
             bio,
             website,
             location,
+            isPrivate,
           });
           setProfile(saved);
         },
@@ -218,6 +222,22 @@ export default function ProfileScreen() {
         colors={colors}
       />
 
+      <Pressable
+        style={[
+          styles.ghost,
+          {
+            borderColor: colors.line,
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            paddingHorizontal: 16,
+          },
+        ]}
+        onPress={() => setIsPrivate((v) => !v)}
+      >
+        <Text style={[styles.ghostText, { color: colors.ink }]}>Private account</Text>
+        <Text style={{ color: colors.brand, fontWeight: '800' }}>{isPrivate ? 'On' : 'Off'}</Text>
+      </Pressable>
+
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       {status ? <Text style={{ color: colors.success }}>{status}</Text> : null}
 
@@ -243,9 +263,34 @@ export default function ProfileScreen() {
         <Text style={[styles.ghostText, { color: colors.danger }]}>Log out</Text>
       </Pressable>
 
-      <Text style={[styles.stats, { color: colors.muted }]}>
-        {profile.followerCount} followers · {profile.followingCount} following
-      </Text>
+      <View style={styles.statsRow}>
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: '/connections/[username]',
+              params: { username: profile.username, tab: 'followers' },
+            })
+          }
+        >
+          <Text style={[styles.stats, { color: colors.muted }]}>
+            <Text style={{ color: colors.ink, fontWeight: '700' }}>{profile.followerCount}</Text>{' '}
+            followers
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: '/connections/[username]',
+              params: { username: profile.username, tab: 'following' },
+            })
+          }
+        >
+          <Text style={[styles.stats, { color: colors.muted }]}>
+            <Text style={{ color: colors.ink, fontWeight: '700' }}>{profile.followingCount}</Text>{' '}
+            following
+          </Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
@@ -317,4 +362,5 @@ const styles = StyleSheet.create({
   },
   ghostText: { fontWeight: '800' },
   stats: { fontSize: 13, marginTop: 4 },
+  statsRow: { flexDirection: 'row', gap: 16, marginTop: 8 },
 });

@@ -1,21 +1,45 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Download, Smartphone, ShieldCheck, Sparkles } from 'lucide-react';
+import {
+  fetchAppUpdateManifest,
+  resolveApkDownloadUrl,
+  type AppUpdateManifest,
+} from '@viora/core';
 import { brand } from '../design/tokens';
 import { Button } from '../components/ui';
 
-const androidApkUrl =
-  (import.meta.env.VITE_ANDROID_APK_URL as string | undefined)?.trim() ||
-  '/downloads/viora-android.apk';
+const envAndroidApkUrl =
+  (import.meta.env.VITE_ANDROID_APK_URL as string | undefined)?.trim() || '';
 
 const iosUrl = (import.meta.env.VITE_IOS_APP_URL as string | undefined)?.trim() || '';
 
-const hasCustomAndroid = Boolean((import.meta.env.VITE_ANDROID_APK_URL as string | undefined)?.trim());
-
 export function DownloadAppPage() {
+  const [manifest, setManifest] = useState<AppUpdateManifest | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setManifest(await fetchAppUpdateManifest('/app-update.json'));
+      } catch {
+        setManifest(null);
+      }
+    })();
+  }, []);
+
+  const androidApkUrl =
+    envAndroidApkUrl ||
+    (manifest
+      ? resolveApkDownloadUrl(manifest, window.location.origin) || '/downloads/viora-android.apk'
+      : '/downloads/viora-android.apk');
+
+  const hasCustomAndroid = Boolean(envAndroidApkUrl);
+  const versionLabel = manifest?.latestVersion ? `v${manifest.latestVersion}` : null;
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dbeafe,var(--color-bg)_40%,#eff6ff)] px-4 py-10 dark:bg-[radial-gradient(circle_at_top_left,#1e3a8a,var(--color-bg)_45%,#0b1220)]">
       <div className="mx-auto w-full max-w-3xl">
-        <Link to="/" className="inline-block font-[family-name:var(--font-display)] text-2xl font-bold text-primary">
+        <Link to="/login" className="inline-block font-[family-name:var(--font-display)] text-2xl font-bold text-primary">
           {brand.name}
         </Link>
 
@@ -27,6 +51,12 @@ export function DownloadAppPage() {
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-white/80 sm:text-base">
               Same account as the web. Download the Android app, install it, and keep sharing from anywhere.
+              {versionLabel ? (
+                <>
+                  {' '}
+                  Latest build: <span className="font-semibold text-white">{versionLabel}</span>.
+                </>
+              ) : null}
             </p>
           </div>
 
@@ -54,10 +84,16 @@ export function DownloadAppPage() {
                   <Smartphone className="h-6 w-6" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-bold text-ink">Android</h2>
+                  <h2 className="text-lg font-bold text-ink">
+                    Android{versionLabel ? ` · ${versionLabel}` : ''}
+                  </h2>
                   <p className="mt-1 text-sm text-muted">
                     Direct APK install. Works with the same Supabase account you use on the web.
+                    The mobile app checks this page for newer versions on launch.
                   </p>
+                  {manifest?.notes ? (
+                    <p className="mt-2 text-xs leading-5 text-muted">{manifest.notes}</p>
+                  ) : null}
                   <div className="mt-4 flex flex-wrap gap-3">
                     <a href={androidApkUrl} download={!hasCustomAndroid || androidApkUrl.startsWith('/')}>
                       <Button>
@@ -96,7 +132,7 @@ export function DownloadAppPage() {
                   <Button variant="secondary">Open App Store</Button>
                 </a>
               ) : (
-                <Link to="/" className="mt-4 inline-block">
+                <Link to="/login" className="mt-4 inline-block">
                   <Button variant="ghost">Continue on web</Button>
                 </Link>
               )}

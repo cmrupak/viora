@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { getErrorMessage, type Event } from '@viora/core';
+import { Link } from 'react-router-dom';
+import { getErrorMessage, type Event, type EventInvite } from '@viora/core';
 import { useAuth } from '../auth/AuthProvider';
 import { Button, Input, Label, Textarea } from '../components/ui';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -7,10 +8,15 @@ import { Skeleton } from '../components/ui/Skeleton';
 export function EventsPage() {
   const { api, user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
+  const [invites, setInvites] = useState<EventInvite[]>([]);
   const [goingIds, setGoingIds] = useState<Set<string>>(new Set());
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startsAt, setStartsAt] = useState('');
+  const [location, setLocation] = useState('');
+  const [isOnline, setIsOnline] = useState(false);
+  const [meetingUrl, setMeetingUrl] = useState('');
+  const [recurrence, setRecurrence] = useState('');
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -21,8 +27,12 @@ export function EventsPage() {
     setLoading(true);
     setError('');
     try {
-      const list = await api.events.list({ limit: 40 });
+      const [list, myInvites] = await Promise.all([
+        api.events.list({ limit: 40 }),
+        api.events.listMyInvites(user.id),
+      ]);
       setEvents(list);
+      setInvites(myInvites);
       const memberships = await Promise.all(
         list.map(async (ev) => {
           try {
@@ -59,11 +69,19 @@ export function EventsPage() {
         hostId: user.id,
         startsAt: iso,
         description: description.trim() || null,
+        location: location.trim() || null,
+        isOnline,
+        meetingUrl: meetingUrl.trim() || null,
+        recurrenceRule: recurrence.trim() || null,
       });
       await api.events.join(created.id, user.id, 'going');
       setTitle('');
       setDescription('');
       setStartsAt('');
+      setLocation('');
+      setMeetingUrl('');
+      setRecurrence('');
+      setIsOnline(false);
       setEvents((prev) => [...prev, created].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
       setGoingIds((prev) => new Set([...prev, created.id]));
     } catch (err) {
@@ -118,6 +136,20 @@ export function EventsPage() {
     }
   }
 
+  async function respondInvite(invite: EventInvite, status: 'accepted' | 'declined') {
+    if (!api || !user) return;
+    try {
+      await api.events.respondToInvite(invite.id, user.id, status);
+      setInvites((prev) => prev.filter((i) => i.id !== invite.id));
+      if (status === 'accepted') {
+        setGoingIds((prev) => new Set([...prev, invite.eventId]));
+        void load();
+      }
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
+
   return (
     <section className="mx-auto w-full max-w-2xl space-y-4">
       <header>
@@ -126,6 +158,27 @@ export function EventsPage() {
       </header>
 
       {error ? <p className="text-sm font-semibold text-danger">{error}</p> : null}
+
+      {invites.length > 0 ? (
+        <div className="space-y-2 rounded-[16px] border border-border bg-surface p-4">
+          <h2 className="text-sm font-semibold text-ink">Invites</h2>
+          {invites.map((inv) => (
+            <div key={inv.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <Link to={`/events/${inv.eventId}`} className="font-semibold text-primary">
+                Open event
+              </Link>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => void respondInvite(inv, 'accepted')}>
+                  Accept
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => void respondInvite(inv, 'declined')}>
+                  Decline
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <form
         onSubmit={(e) => void onCreate(e)}
@@ -163,6 +216,31 @@ export function EventsPage() {
             required
           />
         </div>
+        <div>
+          <Label htmlFor="event-location">Location</Label>
+          <Input
+            id="event-location"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Venue or city"
+          />
+        </div>
+        <label className="flex items-center gap-2 text-sm text-ink">
+          <input type="checkbox" checked={isOnline} onChange={(e) => setIsOnline(e.target.checked)} />
+          Online event
+        </label>
+        {isOnline ? (
+          <Input
+            value={meetingUrl}
+            onChange={(e) => setMeetingUrl(e.target.value)}
+            placeholder="Meeting URL"
+          />
+        ) : null}
+        <Input
+          value={recurrence}
+          onChange={(e) => setRecurrence(e.target.value)}
+          placeholder="Recurrence (e.g. weekly, monthly)"
+        />
         <Button type="submit" disabled={creating || !title.trim() || !startsAt}>
           {creating ? 'Creating…' : 'Create event'}
         </Button>
@@ -191,14 +269,23 @@ export function EventsPage() {
               className="flex flex-wrap items-start justify-between gap-3 rounded-[14px] border border-border bg-surface p-4"
             >
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-ink">{ev.title}</p>
+                <Link to={`/events/${ev.id}`} className="text-sm font-semibold text-ink hover:underline">
+                  {ev.title}
+                </Link>
                 {ev.description ? <p className="mt-1 text-sm text-muted">{ev.description}</p> : null}
                 <p className="mt-1 text-xs text-muted">
                   {new Date(ev.startsAt).toLocaleString()}
+                  {ev.isOnline ? ' · Online' : ''}
+                  {ev.recurrenceRule ? ` · ${ev.recurrenceRule}` : ''}
                   {ev.host?.username ? ` · @${ev.host.username}` : ''}
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
+                <Link to={`/events/${ev.id}`}>
+                  <Button size="sm" variant="secondary">
+                    Open
+                  </Button>
+                </Link>
                 <Button
                   size="sm"
                   variant={going ? 'secondary' : 'primary'}

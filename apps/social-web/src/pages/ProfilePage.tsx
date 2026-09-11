@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getErrorMessage, optimisticMutation, type Profile } from '@viora/core';
 import { useAuth } from '../auth/AuthProvider';
 import { Avatar, Button, Card, Input, Label, Textarea } from '../components/ui';
@@ -10,6 +11,8 @@ export function ProfilePage() {
   const [bio, setBio] = useState(profile?.bio ?? '');
   const [website, setWebsite] = useState(profile?.website ?? '');
   const [location, setLocation] = useState(profile?.location ?? '');
+  const [isPrivate, setIsPrivate] = useState(Boolean(profile?.isPrivate));
+  const [tagReviewEnabled, setTagReviewEnabled] = useState(Boolean(profile?.tagReviewEnabled));
   const [previewUrl, setPreviewUrl] = useState<string | null>(profile?.avatarUrl ?? null);
   const [coverUrl, setCoverUrl] = useState<string | null>(profile?.coverUrl ?? null);
   const [status, setStatus] = useState('');
@@ -24,6 +27,8 @@ export function ProfilePage() {
     setBio(profile?.bio ?? '');
     setWebsite(profile?.website ?? '');
     setLocation(profile?.location ?? '');
+    setIsPrivate(Boolean(profile?.isPrivate));
+    setTagReviewEnabled(Boolean(profile?.tagReviewEnabled));
     setPreviewUrl(profile?.avatarUrl ?? null);
     setCoverUrl(profile?.coverUrl ?? null);
   }, [profile]);
@@ -53,6 +58,8 @@ export function ProfilePage() {
       bio: bio.trim() || null,
       website: website.trim() || null,
       location: location.trim() || null,
+      isPrivate,
+      tagReviewEnabled,
     };
     try {
       await optimisticMutation({
@@ -64,6 +71,8 @@ export function ProfilePage() {
             bio,
             website,
             location,
+            isPrivate,
+            tagReviewEnabled,
           });
           setProfile(saved);
         },
@@ -150,6 +159,17 @@ export function ProfilePage() {
         <p className="text-xs font-bold tracking-wide text-primary uppercase">Profile</p>
         <h1 className="mt-1 text-2xl font-bold text-ink">Your profile</h1>
         <p className="mt-1 text-sm text-muted">{user.email}</p>
+        <p className="mt-2 flex gap-4 text-sm text-muted">
+          <Link to={`/u/${profile.username}/connections`} className="hover:text-ink">
+            <strong className="text-ink">{profile.followerCount}</strong> followers
+          </Link>
+          <Link
+            to={`/u/${profile.username}/connections?tab=following`}
+            className="hover:text-ink"
+          >
+            <strong className="text-ink">{profile.followingCount}</strong> following
+          </Link>
+        </p>
       </div>
 
       <div className="overflow-hidden rounded-[14px] border border-border">
@@ -226,6 +246,35 @@ export function ProfilePage() {
             onChange={(e) => setLocation(e.target.value)}
             placeholder="City, country"
           />
+        </div>
+        <div className="rounded-[12px] border border-border bg-surface-2/40 p-3 space-y-3">
+          <label className="flex items-center justify-between gap-3 text-sm font-semibold text-ink">
+            Private account
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={isPrivate}
+              onChange={(e) => {
+                setIsPrivate(e.target.checked);
+                if (e.target.checked) setTagReviewEnabled(true);
+              }}
+            />
+          </label>
+          <p className="text-xs text-muted">
+            When private, new followers must be approved before they see your posts.
+          </p>
+          <label className="flex items-center justify-between gap-3 text-sm font-semibold text-ink">
+            Tag review
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={tagReviewEnabled}
+              onChange={(e) => setTagReviewEnabled(e.target.checked)}
+            />
+          </label>
+          <p className="text-xs text-muted">
+            Plumbing for Phase E tagging — tags you receive can require approval.
+          </p>
         </div>
         {error ? <p className="text-sm font-semibold text-danger">{error}</p> : null}
         {status ? <p className="text-sm font-semibold text-success">{status}</p> : null}

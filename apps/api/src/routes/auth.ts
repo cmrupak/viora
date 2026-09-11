@@ -16,7 +16,7 @@ import {
   type IdentifyResult,
   type LoginCandidate,
   type UserProfile,
-} from '@nexora/shared';
+} from '@viora/shared';
 import {
   findUsersByName,
   getUserByEmail,

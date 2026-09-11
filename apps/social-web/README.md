@@ -3,7 +3,7 @@
 React + Vite app that mirrors the mobile screen flow.
 
 ```bash
-cd c:\laragon\www\nexora
+cd <project-root>
 npm install
 npm run dev:social-web
 ```
