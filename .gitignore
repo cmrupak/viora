@@ -8,14 +8,13 @@ web-build
 .env
 .env.local
 .env.*.local
-apps/web/.env
-apps/mobile/.env
 apps/api/.env
+apps/social/.env
+apps/social-web/.env
 *.pem
 serviceAccount*.json
 *-firebase-adminsdk-*.json
 google-service-account.json
-apps/mobile/google-service-account.json
 emulator-data
 .firebase
 coverage

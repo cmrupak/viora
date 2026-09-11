@@ -1,39 +1,26 @@
-# Netlify hosts web SPA + Express API (function) against Supabase Postgres.
+# Viora social web (Netlify)
 #
-# Required environment variables in Netlify UI (Site settings → Environment variables):
-#   DATABASE_URL=postgresql://postgres.cozqexdsqxarznnrojdv:YOUR_PASSWORD@aws-0-ap-south-1.pooler.supabase.com:5432/postgres
-#   JWT_SECRET=<long random string>
-#   CORS_ORIGIN=https://rupak26.netlify.app,*
+# Required Netlify env vars (Site settings → Environment variables):
+#   VITE_SUPABASE_URL
+#   VITE_SUPABASE_ANON_KEY
+# Optional:
+#   VITE_ANDROID_APK_URL   (direct APK / EAS artifact URL for /app)
+#   VITE_IOS_APP_URL       (App Store / TestFlight link)
 
 [build]
   base = "."
-  command = "npm install && node scripts/copy-avatars.mjs && npm run build --workspace=@nexora/web"
-  publish = "apps/web/dist"
-  functions = "netlify/functions"
+  command = "npm install && npm run build --workspace=@viora/web"
+  publish = "apps/social-web/dist"
 
 [build.environment]
   NODE_VERSION = "20"
-  VITE_DATA_SOURCE = "api"
-  VITE_API_URL = "https://rupak26.netlify.app/api"
-
-[functions]
-  node_bundler = "esbuild"
-  external_node_modules = ["pg", "pg-native"]
-  included_files = ["apps/api/src/**", "packages/shared/src/**"]
-
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
-  status = 200
-  force = true
-
-# Keep APK/static downloads from being swallowed by the SPA fallback
-[[redirects]]
-  from = "/downloads/*"
-  to = "/downloads/:splat"
-  status = 200
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+[[headers]]
+  for = "/downloads/*"
+  [headers.values]
+    Content-Disposition = "attachment"

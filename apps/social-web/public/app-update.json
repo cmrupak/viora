@@ -1,0 +1,8 @@
+{
+  "appName": "Viora",
+  "platform": "android",
+  "packageName": "app.viora.mobile",
+  "latestVersion": "1.0.0",
+  "apkPath": "/downloads/viora-android.apk",
+  "notes": "Update VITE_ANDROID_APK_URL or replace public/downloads/viora-android.apk after each EAS build."
+}
