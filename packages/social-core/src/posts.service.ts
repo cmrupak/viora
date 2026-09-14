@@ -171,7 +171,7 @@ export const POST_SELECT = `
     id, post_id, tagged_user_id, tagged_by, status, created_at, updated_at,
     tagged_user:profiles!post_tags_tagged_user_id_fkey(${PROFILE_SELECT})
   ),
-  repost_of:posts!posts_repost_of_id_fkey(
+  repost_of:posts!repost_of_id(
     id, author_id, body, visibility, like_count, comment_count, share_count, save_count,
     deleted_at, created_at, updated_at,
     author:profiles!posts_author_id_fkey(${PROFILE_SELECT}),
@@ -187,6 +187,11 @@ const POST_SELECT_FALLBACK = `
   media:post_media(id, post_id, url, media_type, sort_order, width, height, created_at)
 `;
 
+function needsPostSelectFallback(message?: string | null): boolean {
+  return /publish_status|post_tags|alt_text|is_sensitive|duration_seconds|archived_at|repost_of|relationship|schema cache/i.test(
+    message ?? '',
+  );
+}
 function isLivePost(post: Post, now = Date.now()): boolean {
   if (post.deletedAt || post.archivedAt) return false;
   const status = post.publishStatus ?? 'published';
@@ -325,7 +330,7 @@ export function createPostsService(supabase: SupabaseClient) {
       .is('deleted_at', null)
       .maybeSingle();
 
-    if (error && /publish_status|post_tags|alt_text/i.test(error.message ?? '')) {
+    if (error && needsPostSelectFallback(error.message)) {
       const fallback = await supabase
         .from('posts')
         .select(POST_SELECT_FALLBACK)
@@ -584,7 +589,7 @@ export function createPostsService(supabase: SupabaseClient) {
         }
 
         let { data, error } = await query;
-        if (error && /publish_status|archived_at|post_tags|alt_text|is_sensitive/i.test(error.message ?? '')) {
+        if (error && needsPostSelectFallback(error.message)) {
           const fallback = await supabase
             .from('posts')
             .select(POST_SELECT_FALLBACK)
@@ -632,7 +637,7 @@ export function createPostsService(supabase: SupabaseClient) {
           }
 
           let { data, error } = await followingQuery;
-          if (error && /publish_status|archived_at|post_tags|alt_text|is_sensitive/i.test(error.message ?? '')) {
+          if (error && needsPostSelectFallback(error.message)) {
             const fallback = await supabase
               .from('posts')
               .select(POST_SELECT_FALLBACK)
@@ -698,7 +703,7 @@ export function createPostsService(supabase: SupabaseClient) {
       }
 
       let { data, error } = await query;
-      if (error && /publish_status|archived_at|post_tags|alt_text|duration_seconds|is_sensitive/i.test(error.message ?? '')) {
+      if (error && needsPostSelectFallback(error.message)) {
         const fallback = await supabase
           .from('posts')
           .select(POST_SELECT_FALLBACK)
@@ -753,7 +758,7 @@ export function createPostsService(supabase: SupabaseClient) {
       }
 
       let { data, error } = await query;
-      if (error && /publish_status|pinned_at|archived_at|post_tags|alt_text/i.test(error.message ?? '')) {
+      if (error && needsPostSelectFallback(error.message)) {
         const fallback = await supabase
           .from('posts')
           .select(POST_SELECT_FALLBACK)
