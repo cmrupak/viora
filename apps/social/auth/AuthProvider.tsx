@@ -10,6 +10,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createVioraApi,
+  createVioraBackend,
   getVioraSupabase,
   type AuthLoginInput,
   type AuthRegisterInput,
@@ -17,7 +18,7 @@ import {
   type SessionUser,
   type VioraApi,
 } from '@viora/core';
-import { readSupabaseEnv } from '@/lib/supabase';
+import { readBackendEnv } from '@/lib/supabase';
 
 type AuthContextValue = {
   ready: boolean;
@@ -43,11 +44,21 @@ export function useAuth(): AuthContextValue {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const env = readSupabaseEnv();
-  const configured = Boolean(env.url && env.anonKey && !env.url.includes('YOUR_PROJECT'));
+  const env = readBackendEnv();
+  const configured =
+    env.mode === 'php'
+      ? Boolean(env.apiBaseUrl)
+      : Boolean(env.url && env.anonKey && !env.url.includes('YOUR_PROJECT'));
 
   const api = useMemo<VioraApi | null>(() => {
     if (!configured) return null;
+    if (env.mode === 'php') {
+      return createVioraBackend({
+        backend: 'php',
+        baseUrl: env.apiBaseUrl,
+        storage: AsyncStorage,
+      }) as unknown as VioraApi;
+    }
     const supabase = getVioraSupabase({
       url: env.url,
       anonKey: env.anonKey,
@@ -55,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       storage: AsyncStorage,
     });
     return createVioraApi(supabase);
-  }, [configured, env.anonKey, env.url]);
+  }, [configured, env.anonKey, env.apiBaseUrl, env.mode, env.url]);
 
   const [ready, setReady] = useState(!configured);
   const [user, setUser] = useState<SessionUser | null>(null);

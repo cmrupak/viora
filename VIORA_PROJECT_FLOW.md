@@ -2,7 +2,9 @@
 
 > **Purpose:** Paste this file into another AI so it understands the current product, architecture, and flows.  
 > **Keep updated** whenever auth, routing, deploy, or major features change.  
-> **Last updated:** 2026-09-11 (Phase K: safety / MFA / activity / export / hard delete / a11y prefs)
+> **Last updated:** 2026-09-14 (Phase 10 local test matrix done)  
+> **Full production doc:** [`VIORA_FULL_PROJECT.md`](./VIORA_FULL_PROJECT.md) — use that for go-live (env, checklist, routes, everything).  
+> **Backend migration (local complete through Phase 10):** [`docs/MYSQL_PHP_MIGRATION_PLAN.md`](./docs/MYSQL_PHP_MIGRATION_PLAN.md) — Phases 1–10 done on Laragon. Production/Netlify still Supabase. Gaps: media upload, typing WS, some core stubs.
 
 ---
 
@@ -47,6 +49,7 @@ Local disk folder may still be named `nexora` (e.g. Laragon path) — optional t
 | `013_phase_i_groups_events.sql` | group visibility/status/join Q&A/post approval/broadcasts; event group link/online/recurrence/invites/discussion |
 | `014_phase_j_notifications_discovery.sql` | notification_prefs, push_tokens, hashtags/post_hashtags, group_key, birthday/memory types + RPCs |
 | `015_phase_k_safety_account.sql` | user_settings, login_events, activity_log, data_export_requests, account_deletion_requests, posts.is_sensitive, account-exports bucket |
+| `016_reload_posts_repost_fk.sql` | Ensure posts repost FK + `NOTIFY pgrst, 'reload schema'` |
 
 Apply (in order if not already applied):
 

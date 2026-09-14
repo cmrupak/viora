@@ -1,0 +1,410 @@
+﻿[
+    {
+        "Area":  "health",
+        "Test":  "health/ok",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "auth",
+        "Test":  "auth/register-A",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "auth",
+        "Test":  "auth/register-B",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "auth",
+        "Test":  "auth/login",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "auth",
+        "Test":  "auth/bad-credentials",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "auth",
+        "Test":  "auth/refresh",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "auth",
+        "Test":  "auth/me",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "auth",
+        "Test":  "auth/otp-send",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "auth",
+        "Test":  "auth/mfa-enroll-verify",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "auth",
+        "Test":  "auth/mfa-unenroll",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "profile",
+        "Test":  "profile/get",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "profile",
+        "Test":  "profile/update",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "profile",
+        "Test":  "profile/search",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "profile",
+        "Test":  "profile/avatar-upload",
+        "Status":  "SKIP",
+        "Detail":  "No PHP media upload endpoint yet"
+    },
+    {
+        "Area":  "profile",
+        "Test":  "profile/cover-upload",
+        "Status":  "SKIP",
+        "Detail":  "No PHP media upload endpoint yet"
+    },
+    {
+        "Area":  "posts",
+        "Test":  "posts/create",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "posts",
+        "Test":  "posts/get",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "posts",
+        "Test":  "posts/feed",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "posts",
+        "Test":  "posts/watch",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "posts",
+        "Test":  "posts/update",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "posts",
+        "Test":  "posts/like",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "posts",
+        "Test":  "posts/comment",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "posts",
+        "Test":  "posts/comment-like",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "posts",
+        "Test":  "posts/pin",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "posts",
+        "Test":  "posts/archive",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "posts",
+        "Test":  "posts/media-upload",
+        "Status":  "SKIP",
+        "Detail":  "Storage not on PHP yet"
+    },
+    {
+        "Area":  "posts",
+        "Test":  "posts/saves-collections",
+        "Status":  "SKIP",
+        "Detail":  "Core stubs — no PHP routes"
+    },
+    {
+        "Area":  "posts",
+        "Test":  "posts/shares-reactions",
+        "Status":  "SKIP",
+        "Detail":  "Core stubs — no PHP routes"
+    },
+    {
+        "Area":  "social",
+        "Test":  "social/follow",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "social",
+        "Test":  "social/friend-request",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "social",
+        "Test":  "social/friend-accept",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "social",
+        "Test":  "social/mute",
+        "Status":  "FAIL",
+        "Detail":  "{\"ok\":false,\"message\":\"Invalid mute scope.\"}"
+    },
+    {
+        "Area":  "social",
+        "Test":  "social/restrict",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "social",
+        "Test":  "social/snooze",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "social",
+        "Test":  "social/close-friend",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "social",
+        "Test":  "social/favorite",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "social",
+        "Test":  "social/relationship",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "social",
+        "Test":  "social/block",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "stories",
+        "Test":  "stories",
+        "Status":  "FAIL",
+        "Detail":  "{\"ok\":false,\"message\":\"Story media is required.\"}"
+    },
+    {
+        "Area":  "reels",
+        "Test":  "reels",
+        "Status":  "FAIL",
+        "Detail":  "{\"ok\":false,\"message\":\"Reel media is required.\"}"
+    },
+    {
+        "Area":  "stories",
+        "Test":  "stories/media-upload",
+        "Status":  "SKIP",
+        "Detail":  "No PHP media upload"
+    },
+    {
+        "Area":  "messaging",
+        "Test":  "messaging/typing-ws",
+        "Status":  "SKIP",
+        "Detail":  "Polling only; typing deferred"
+    },
+    {
+        "Area":  "groups",
+        "Test":  "groups/create",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "groups",
+        "Test":  "groups/join",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "groups",
+        "Test":  "groups/members",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "events",
+        "Test":  "events",
+        "Status":  "FAIL",
+        "Detail":  "{\"ok\":false,\"message\":\"Incorrect datetime value: \u00272026-09-21T11:22:29.1819967Z\u0027 for column \u0027starts_at\u0027 at row 1\",\"exception\":\"mysqli_sql_exception\",\"file\":\"C:\\\\laragon\\\\www\\\\viora\\\\backend\\\\repositories\\\\EventsRepository.php\",\"line\":48}"
+    },
+    {
+        "Area":  "messages",
+        "Test":  "messages/dm-create",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "messages",
+        "Test":  "messages/send",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "messages",
+        "Test":  "messages/list",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "messages",
+        "Test":  "messages/react",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "messages",
+        "Test":  "messages/read",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "messages",
+        "Test":  "messages/presence",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "messages",
+        "Test":  "messages/attachments",
+        "Status":  "SKIP",
+        "Detail":  "Storage not on PHP yet"
+    },
+    {
+        "Area":  "notifications",
+        "Test":  "notifications/list",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "notifications",
+        "Test":  "notifications/unread",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "notifications",
+        "Test":  "notifications/prefs",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "discovery",
+        "Test":  "discovery/trending",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "discovery",
+        "Test":  "discovery/explore",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "discovery",
+        "Test":  "discovery/birthdays",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "discovery",
+        "Test":  "discovery/memories",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "settings",
+        "Test":  "settings/get",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "settings",
+        "Test":  "settings/patch",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "settings",
+        "Test":  "settings/login-event",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "safety",
+        "Test":  "safety/report",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "settings",
+        "Test":  "settings/export",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "settings",
+        "Test":  "settings/deactivate",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "auth",
+        "Test":  "auth/logout",
+        "Status":  "PASS",
+        "Detail":  ""
+    },
+    {
+        "Area":  "settings",
+        "Test":  "settings/hard-delete-B",
+        "Status":  "PASS",
+        "Detail":  ""
+    }
+]

@@ -1,5 +1,6 @@
 import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { toUserError } from './errors';
+import type { StoredAuthSession } from './http/session-store';
 import { PROFILE_SELECT, mapProfileRow } from './profile.mapper';
 import type { Profile, SessionUser } from './types';
 
@@ -23,7 +24,7 @@ export type AuthLoginInput = {
 
 export type AuthResult = {
   user: SessionUser | null;
-  session: Session | null;
+  session: Session | StoredAuthSession | null;
   needsEmailVerification?: boolean;
 };
 
@@ -92,6 +93,11 @@ export function createAuthService(supabase: SupabaseClient) {
         user: mapUser(data.session?.user ?? null),
         session: data.session,
       };
+    },
+
+    async getAccessToken(): Promise<string | null> {
+      const { data } = await supabase.auth.getSession();
+      return data.session?.access_token ?? null;
     },
 
     onAuthStateChange(callback: (result: AuthResult) => void) {

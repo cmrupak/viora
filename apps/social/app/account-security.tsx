@@ -95,8 +95,7 @@ export default function AccountSecurityScreen() {
     setError('');
     try {
       const request = await api.settings.requestDataExport(user.id);
-      const { data } = await api.client.auth.getSession();
-      const token = data.session?.access_token;
+      const token = await api.auth.getAccessToken();
       if (!token) throw new Error('Session expired.');
       const result = await runAccountExport(token, request.id);
       setStatus(result.message);
@@ -121,8 +120,7 @@ export default function AccountSecurityScreen() {
             setError('');
             try {
               const request = await api.settings.requestHardDelete(user.id);
-              const { data } = await api.client.auth.getSession();
-              const token = data.session?.access_token;
+              const token = await api.auth.getAccessToken();
               if (!token) throw new Error('Session expired.');
               await runAccountHardDelete(token, request.id, deletePhrase.trim() || 'DELETE');
               await logout();

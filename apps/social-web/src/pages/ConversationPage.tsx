@@ -25,14 +25,26 @@ const REACTION_EMOJI: Record<MessageReactionType, string> = {
 function mapRealtimeRow(row: Record<string, unknown>, sender?: Profile | null): Message {
   return {
     id: String(row.id),
-    conversationId: String(row.conversation_id),
-    senderId: String(row.sender_id),
-    body: row.deleted_at ? '' : String(row.body ?? ''),
-    replyToId: row.reply_to_id == null ? null : String(row.reply_to_id),
-    expiresAt: row.expires_at == null ? null : String(row.expires_at),
-    deletedAt: row.deleted_at == null ? null : String(row.deleted_at),
-    createdAt: String(row.created_at ?? ''),
-    updatedAt: row.updated_at == null ? undefined : String(row.updated_at),
+    conversationId: String(row.conversationId ?? row.conversation_id),
+    senderId: String(row.senderId ?? row.sender_id),
+    body: row.deletedAt || row.deleted_at ? '' : String(row.body ?? ''),
+    replyToId:
+      row.replyToId == null && row.reply_to_id == null
+        ? null
+        : String(row.replyToId ?? row.reply_to_id),
+    expiresAt:
+      row.expiresAt == null && row.expires_at == null
+        ? null
+        : String(row.expiresAt ?? row.expires_at),
+    deletedAt:
+      row.deletedAt == null && row.deleted_at == null
+        ? null
+        : String(row.deletedAt ?? row.deleted_at),
+    createdAt: String(row.createdAt ?? row.created_at ?? ''),
+    updatedAt:
+      row.updatedAt == null && row.updated_at == null
+        ? undefined
+        : String(row.updatedAt ?? row.updated_at),
     status: 'ready',
     sender: sender ?? null,
     attachments: [],
@@ -58,7 +70,6 @@ export function ConversationPage() {
   const [sending, setSending] = useState(false);
   const [muted, setMuted] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const typingTimer = useRef<number | null>(null);
 
   useEffect(() => {
     if (!api || !user || !id) return;
@@ -100,55 +111,37 @@ export function ConversationPage() {
       }
     })();
 
-    const channel = api.client
-      .channel(`messages:${id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${id}`,
-        },
-        (payload) => {
-          const row = payload.new as Record<string, unknown>;
-          const incoming = mapRealtimeRow(row);
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === incoming.id)) return prev;
-            const withoutPending = prev.filter(
-              (m) =>
-                !(
-                  m.status === 'pending' &&
-                  m.senderId === incoming.senderId &&
-                  m.body === incoming.body
-                ),
-            );
-            return [...withoutPending, incoming];
-          });
-          if (user && String(row.sender_id) !== user.id) {
-            void api.messages.markRead(id, user.id);
-          }
-        },
-      )
-      .subscribe();
-
-    const typingChannel = api.client.channel(api.messages.typingChannelName(id), {
-      config: { broadcast: { self: false } },
+    const unsubMessages = api.realtime.subscribeMessages(id, ({ message: row }) => {
+      const incoming = mapRealtimeRow(row);
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === incoming.id)) return prev;
+        const withoutPending = prev.filter(
+          (m) =>
+            !(
+              m.status === 'pending' &&
+              m.senderId === incoming.senderId &&
+              m.body === incoming.body
+            ),
+        );
+        return [...withoutPending, incoming];
+      });
+      const senderId = String(row.senderId ?? row.sender_id ?? '');
+      if (user && senderId && senderId !== user.id) {
+        void api.messages.markRead(id, user.id);
+      }
     });
-    void typingChannel
-      .on('broadcast', { event: 'typing' }, (payload) => {
-        const from = (payload.payload as { userId?: string } | undefined)?.userId;
-        if (from && from !== user.id) {
-          setTyping(true);
-          window.setTimeout(() => setTyping(false), 2000);
-        }
-      })
-      .subscribe();
+
+    const unsubTyping = api.realtime.subscribeTyping(id, ({ userId: from }) => {
+      if (from && from !== user.id) {
+        setTyping(true);
+        window.setTimeout(() => setTyping(false), 2000);
+      }
+    });
 
     return () => {
       active = false;
-      void api.client.removeChannel(channel);
-      void api.client.removeChannel(typingChannel);
+      unsubMessages();
+      unsubTyping();
       void api.messages.heartbeat(user.id, false);
     };
   }, [api, user, id]);
@@ -159,24 +152,25 @@ export function ConversationPage() {
 
   function broadcastTyping() {
     if (!api || !user || !id) return;
-    const channel = api.client.channel(api.messages.typingChannelName(id));
-    void channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        void channel.send({
-          type: 'broadcast',
-          event: 'typing',
-          payload: { userId: user.id },
-        });
-      }
-    });
-    if (typingTimer.current) window.clearTimeout(typingTimer.current);
-    typingTimer.current = window.setTimeout(() => {
-      void api.client.removeChannel(channel);
-    }, 1500);
+    void api.realtime.publishTyping(id, user.id, true);
   }
 
   async function uploadAttachment(authorId: string, mediaFile: File) {
     if (!api) throw new Error('Not configured');
+    let mediaType: 'image' | 'video' | 'audio' | 'file' = 'file';
+    if (mediaFile.type.startsWith('image/')) mediaType = 'image';
+    else if (mediaFile.type.startsWith('video/')) mediaType = 'video';
+    else if (mediaFile.type.startsWith('audio/')) mediaType = 'audio';
+    if (api.media) {
+      const uploaded = await api.media.upload({
+        bucket: 'messages',
+        file: mediaFile,
+        filename: mediaFile.name || `${authorId}-${Date.now()}.bin`,
+        contentType: mediaFile.type || 'application/octet-stream',
+      });
+      return { url: uploaded.url, mediaType, fileName: mediaFile.name };
+    }
+    if (!api.client) throw new Error('Message attachments are not configured.');
     const ext = mediaFile.name.split('.').pop() || 'bin';
     const path = `${authorId}/${Date.now()}.${ext}`;
     const { error: uploadError } = await api.client.storage.from('messages').upload(path, mediaFile, {
@@ -185,10 +179,6 @@ export function ConversationPage() {
     });
     if (uploadError) throw uploadError;
     const { data } = api.client.storage.from('messages').getPublicUrl(path);
-    let mediaType: 'image' | 'video' | 'audio' | 'file' = 'file';
-    if (mediaFile.type.startsWith('image/')) mediaType = 'image';
-    else if (mediaFile.type.startsWith('video/')) mediaType = 'video';
-    else if (mediaFile.type.startsWith('audio/')) mediaType = 'audio';
     return { url: data.publicUrl, mediaType, fileName: mediaFile.name };
   }
 

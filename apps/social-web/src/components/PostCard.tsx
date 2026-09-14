@@ -86,7 +86,7 @@ function PostCardInner({ post, onChange, onDelete }: PostCardProps) {
 
   useEffect(() => {
     if (!api || !user || post.id.startsWith('pending-') || post.authorId === user.id) return;
-    void api.posts.recordView(post.id, user.id);
+    void api.posts.recordView(post.id, user.id).catch(() => undefined);
   }, [api, user, post.id, post.authorId]);
 
   function commit(next: Post) {

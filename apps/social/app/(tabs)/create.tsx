@@ -77,20 +77,31 @@ export default function CreateScreen() {
     if (!api || !user) throw new Error('Not signed in.');
     const ext = extensionFromUri(localUri);
     const contentType = contentTypeForExtension(ext);
-    const path = `${user.id}/${Date.now()}-${sortOrder}.${ext}`;
+    const mediaType = contentType.startsWith('video/') ? 'video' : 'image';
+    const alt = altText.trim() || null;
     const bytes = await uriToArrayBuffer(localUri);
+    if (api.media) {
+      const uploaded = await api.media.upload({
+        bucket: 'post-media',
+        file: bytes,
+        filename: `${user.id}-${sortOrder}.${ext}`,
+        contentType,
+      });
+      return { url: uploaded.url, mediaType, sortOrder, altText: alt };
+    }
+    if (!api.client) throw new Error('Media upload is not configured.');
+    const path = `${user.id}/${Date.now()}-${sortOrder}.${ext}`;
     const { error: uploadError } = await api.client.storage.from('post-media').upload(path, bytes, {
       contentType,
       upsert: false,
     });
     if (uploadError) throw uploadError;
     const { data } = api.client.storage.from('post-media').getPublicUrl(path);
-    const mediaType = contentType.startsWith('video/') ? 'video' : 'image';
     return {
       url: data.publicUrl,
       mediaType,
       sortOrder,
-      altText: altText.trim() || null,
+      altText: alt,
     };
   }
 

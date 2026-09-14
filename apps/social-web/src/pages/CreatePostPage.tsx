@@ -111,6 +111,18 @@ export function CreatePostPage() {
     altText: string | null;
   }> {
     if (!api) throw new Error('Not configured');
+    const mediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
+    const alt = altText.trim() || null;
+    if (api.media) {
+      const uploaded = await api.media.upload({
+        bucket: 'post-media',
+        file: mediaFile,
+        filename: mediaFile.name || `${authorId}-${sortOrder}.jpg`,
+        contentType: mediaFile.type || 'image/jpeg',
+      });
+      return { url: uploaded.url, mediaType, sortOrder, altText: alt };
+    }
+    if (!api.client) throw new Error('Media upload is not configured.');
     const ext = mediaFile.name.split('.').pop() || 'jpg';
     const path = `${authorId}/${Date.now()}-${sortOrder}.${ext}`;
     const { error: uploadError } = await api.client.storage.from('post-media').upload(path, mediaFile, {
@@ -119,12 +131,11 @@ export function CreatePostPage() {
     });
     if (uploadError) throw uploadError;
     const { data } = api.client.storage.from('post-media').getPublicUrl(path);
-    const mediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
     return {
       url: data.publicUrl,
       mediaType,
       sortOrder,
-      altText: altText.trim() || null,
+      altText: alt,
     };
   }
 

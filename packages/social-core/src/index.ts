@@ -32,4 +32,5 @@ export * from './reactions.service';
 export * from './relationships.service';
 export * from './audiences.service';
 export * from './discovery.service';
+export * from './http';
 export * from './api';

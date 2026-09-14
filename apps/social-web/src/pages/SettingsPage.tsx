@@ -945,8 +945,7 @@ function DataExportPanel() {
     setStatus('');
     try {
       const request = await api.settings.requestDataExport(user.id);
-      const { data: sessionData } = await api.client.auth.getSession();
-      const token = sessionData.session?.access_token;
+      const token = await api.auth.getAccessToken();
       if (!token) throw new Error('Session expired. Sign in again.');
       const result = await runAccountExport(token, request.id);
       setStatus(result.message);
@@ -1015,8 +1014,7 @@ function HardDeletePanel({ onDeleted }: { onDeleted: () => Promise<void> }) {
     setError('');
     try {
       const request = await api.settings.requestHardDelete(user.id);
-      const { data: sessionData } = await api.client.auth.getSession();
-      const token = sessionData.session?.access_token;
+      const token = await api.auth.getAccessToken();
       if (!token) throw new Error('Session expired. Sign in again.');
       await runAccountHardDelete(token, request.id, phrase.trim() || 'DELETE');
       await onDeleted();

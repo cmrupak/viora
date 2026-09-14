@@ -27,14 +27,26 @@ import { contentTypeForExtension, extensionFromUri, uriToArrayBuffer } from '@/l
 function mapRealtimeRow(row: Record<string, unknown>): Message {
   return {
     id: String(row.id),
-    conversationId: String(row.conversation_id),
-    senderId: String(row.sender_id),
-    body: row.deleted_at ? '' : String(row.body ?? ''),
-    replyToId: row.reply_to_id == null ? null : String(row.reply_to_id),
-    expiresAt: row.expires_at == null ? null : String(row.expires_at),
-    deletedAt: row.deleted_at == null ? null : String(row.deleted_at),
-    createdAt: String(row.created_at ?? ''),
-    updatedAt: row.updated_at == null ? undefined : String(row.updated_at),
+    conversationId: String(row.conversationId ?? row.conversation_id),
+    senderId: String(row.senderId ?? row.sender_id),
+    body: row.deletedAt || row.deleted_at ? '' : String(row.body ?? ''),
+    replyToId:
+      row.replyToId == null && row.reply_to_id == null
+        ? null
+        : String(row.replyToId ?? row.reply_to_id),
+    expiresAt:
+      row.expiresAt == null && row.expires_at == null
+        ? null
+        : String(row.expiresAt ?? row.expires_at),
+    deletedAt:
+      row.deletedAt == null && row.deleted_at == null
+        ? null
+        : String(row.deletedAt ?? row.deleted_at),
+    createdAt: String(row.createdAt ?? row.created_at ?? ''),
+    updatedAt:
+      row.updatedAt == null && row.updated_at == null
+        ? undefined
+        : String(row.updatedAt ?? row.updated_at),
     status: 'ready',
     sender: null,
     attachments: [],
@@ -85,46 +97,28 @@ export default function MessageThreadScreen() {
   useEffect(() => {
     if (!api || !id || !user) return;
 
-    const channel = api.client
-      .channel(`messages:${id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${id}`,
-        },
-        (payload) => {
-          const row = payload.new as Record<string, unknown>;
-          const incoming = mapRealtimeRow(row);
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === incoming.id)) return prev;
-            return [...prev.filter((m) => m.status !== 'pending' || m.body !== incoming.body), incoming];
-          });
-          if (String(row.sender_id) !== user.id) {
-            void api.messages.markRead(id, user.id);
-          }
-        },
-      )
-      .subscribe();
-
-    const typingChannel = api.client.channel(api.messages.typingChannelName(id), {
-      config: { broadcast: { self: false } },
+    const unsubMessages = api.realtime.subscribeMessages(id, ({ message: row }) => {
+      const incoming = mapRealtimeRow(row);
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === incoming.id)) return prev;
+        return [...prev.filter((m) => m.status !== 'pending' || m.body !== incoming.body), incoming];
+      });
+      const senderId = String(row.senderId ?? row.sender_id ?? '');
+      if (senderId && senderId !== user.id) {
+        void api.messages.markRead(id, user.id);
+      }
     });
-    void typingChannel
-      .on('broadcast', { event: 'typing' }, (payload) => {
-        const from = (payload.payload as { userId?: string } | undefined)?.userId;
-        if (from && from !== user.id) {
-          setTyping(true);
-          setTimeout(() => setTyping(false), 2000);
-        }
-      })
-      .subscribe();
+
+    const unsubTyping = api.realtime.subscribeTyping(id, ({ userId: from }) => {
+      if (from && from !== user.id) {
+        setTyping(true);
+        setTimeout(() => setTyping(false), 2000);
+      }
+    });
 
     return () => {
-      void api.client.removeChannel(channel);
-      void api.client.removeChannel(typingChannel);
+      unsubMessages();
+      unsubTyping();
     };
   }, [api, id, user]);
 
@@ -132,20 +126,30 @@ export default function MessageThreadScreen() {
     if (!api || !user) throw new Error('Not signed in');
     const ext = extensionFromUri(localUri);
     const contentType = contentTypeForExtension(ext);
-    const path = `${user.id}/${Date.now()}.${ext}`;
+    const mediaType = (contentType.startsWith('audio/')
+      ? 'audio'
+      : contentType.startsWith('video/')
+        ? 'video'
+        : 'image') as 'image' | 'video' | 'audio';
     const bytes = await uriToArrayBuffer(localUri);
+    if (api.media) {
+      const uploaded = await api.media.upload({
+        bucket: 'messages',
+        file: bytes,
+        filename: `${user.id}-${Date.now()}.${ext}`,
+        contentType,
+      });
+      return { url: uploaded.url, mediaType, fileName: null };
+    }
+    if (!api.client) throw new Error('Message attachments are not configured.');
+    const path = `${user.id}/${Date.now()}.${ext}`;
     const { error: uploadError } = await api.client.storage.from('messages').upload(path, bytes, {
       contentType,
       upsert: false,
     });
     if (uploadError) throw uploadError;
     const { data } = api.client.storage.from('messages').getPublicUrl(path);
-    const mediaType = contentType.startsWith('audio/')
-      ? 'audio'
-      : contentType.startsWith('video/')
-        ? 'video'
-        : 'image';
-    return { url: data.publicUrl, mediaType: mediaType as 'image' | 'video' | 'audio', fileName: null };
+    return { url: data.publicUrl, mediaType, fileName: null };
   }
 
   async function send(attachments?: Array<{ url: string; mediaType: 'image' | 'video' | 'audio' | 'file'; fileName?: string | null }>) {
@@ -329,17 +333,7 @@ export default function MessageThreadScreen() {
           onChangeText={(text) => {
             setDraft(text);
             if (!api || !user || !id) return;
-            const channel = api.client.channel(api.messages.typingChannelName(id));
-            void channel.subscribe((status) => {
-              if (status === 'SUBSCRIBED') {
-                void channel.send({
-                  type: 'broadcast',
-                  event: 'typing',
-                  payload: { userId: user.id },
-                });
-              }
-            });
-          }}
+            void api.realtime.publishTyping(id, user.id, true);          }}
           placeholder="Message…"
           placeholderTextColor={colors.muted}
           style={[styles.input, { color: colors.ink }]}

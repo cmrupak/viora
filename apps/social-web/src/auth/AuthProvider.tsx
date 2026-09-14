@@ -9,6 +9,7 @@ import {
 } from 'react';
 import {
   createVioraApi,
+  createVioraBackend,
   getVioraSupabase,
   type AuthLoginInput,
   type AuthRegisterInput,
@@ -16,7 +17,7 @@ import {
   type SessionUser,
   type VioraApi,
 } from '@viora/core';
-import { readSupabaseEnv } from '../lib/supabase';
+import { readBackendEnv } from '../lib/supabase';
 
 type AuthContextValue = {
   ready: boolean;
@@ -42,18 +43,24 @@ export function useAuth(): AuthContextValue {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const env = readSupabaseEnv();
-  const configured = Boolean(env.url && env.anonKey && !env.url.includes('YOUR_PROJECT'));
+  const env = readBackendEnv();
+  const configured =
+    env.mode === 'php'
+      ? Boolean(env.apiBaseUrl)
+      : Boolean(env.url && env.anonKey && !env.url.includes('YOUR_PROJECT'));
 
   const api = useMemo(() => {
     if (!configured) return null as VioraApi | null;
+    if (env.mode === 'php') {
+      return createVioraBackend({ backend: 'php', baseUrl: env.apiBaseUrl }) as unknown as VioraApi;
+    }
     const supabase = getVioraSupabase({
       url: env.url,
       anonKey: env.anonKey,
       detectSessionInUrl: true,
     });
     return createVioraApi(supabase);
-  }, [configured, env.anonKey, env.url]);
+  }, [configured, env.anonKey, env.apiBaseUrl, env.mode, env.url]);
 
   const [ready, setReady] = useState(!configured);
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -109,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       api,
       setProfile,
       async login(input) {
-        if (!api) throw new Error('Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in apps/social-web/.env');
+        if (!api) throw new Error('Add VITE_SUPABASE_* or VITE_API_BACKEND=php + VITE_API_BASE_URL');
         const result = await api.auth.login(input);
         setUser(result.user);
         if (result.user) {
@@ -124,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       async register(input) {
-        if (!api) throw new Error('Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in apps/social-web/.env');
+        if (!api) throw new Error('Add VITE_SUPABASE_* or VITE_API_BACKEND=php + VITE_API_BASE_URL');
         const result = await api.auth.register(input);
         setUser(result.user);
         if (result.user) setProfile(await api.auth.ensureProfile(result.user.id));
@@ -137,11 +144,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(null);
       },
       async requestPasswordReset(email, options) {
-        if (!api) throw new Error('Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in apps/social-web/.env');
+        if (!api) throw new Error('Add VITE_SUPABASE_* or VITE_API_BACKEND=php + VITE_API_BASE_URL');
         await api.auth.requestPasswordReset(email, options);
       },
       async updatePassword(password) {
-        if (!api) throw new Error('Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in apps/social-web/.env');
+        if (!api) throw new Error('Add VITE_SUPABASE_* or VITE_API_BACKEND=php + VITE_API_BASE_URL');
         await api.auth.updatePassword(password);
       },
       refreshProfile,
